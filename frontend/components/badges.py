@@ -48,3 +48,4 @@ def render_badges(badges: List[Dict]):
 
 
 
+
