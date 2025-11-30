@@ -1,103 +1,136 @@
-# home.py
+# home.py (수정된 최종 코드)
 
 import reflex as rx
 from ecojourney.state import AppState
 
-# --- 공통 컴포넌트 (나중에 별도 파일로 분리 가능) ---
+# --- 공통 컴포넌트 ---
 def header() -> rx.Component:
     return rx.box(
         rx.hstack(
-            rx.text("EcoJourney", font_size="2em", font_weight="bold", color="white"),
-            # 나중에 여기에 네비게이션 링크를 추가할 수 있습니다.
+            rx.button(
+                "EcoJourney",
+                on_click=rx.redirect("/"),
+                background_color="transparent",   # 버튼 배경 제거
+                color="white",
+                font_size="1.5em",
+                font_weight="bold",
+                padding="0",                     # 버튼 기본 padding 제거
+                border="none",
+                border_radius="8px",
+                cursor="pointer",
+            ),
             justify="between",
             align="center",
             padding="1em 2em",
         ),
-        # border_bottom="1px solid #eee",
+        border_top="1px solid #eee",
         width="100%",
-        position="fixed", # 상단 고정
+        height="10%",
+        position="fixed",
         top="0",
         z_index="100",
-        background_color="transparent",
+        background_color="rgba(0, 0, 0, 0.5)",
     )
+
 
 def footer() -> rx.Component:
     return rx.box(
         rx.center(
-            rx.text("© 2023 EcoJourney. All rights reserved.", color="gray.500", font_size="0.9em"),
+            # 💡 영상 위에서 잘 보이도록 텍스트 색상 조정
+            rx.text("© 2025 EcoJourney. All rights reserved.", color="white", font_size="0.9em"),
             padding="1em",
         ),
-        border_top="1px solid #eee",
         width="100%",
-        position="fixed", # 하단 고정
+        position="fixed",
         bottom="0",
         z_index="100",
-        background_color="white",
+        background_color="transparent",
+    )
+
+def background_video() -> rx.Component:
+    """순수 HTML5 <video> 태그를 사용하여 자동 재생을 강제하고 레이어를 안정화합니다."""
+    return rx.box(
+        # 💡 rx.html을 사용하여 필수 속성을 가진 순수 HTML 태그를 삽입
+        rx.html(
+            # src 경로가 정확한지 확인하면서, 필수 속성(autoplay, loop, muted, playsinline)을 강제합니다.
+            """
+            <video autoplay loop muted playsinline 
+                src="/eco_background.mp4" 
+                style='
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    z-index: -2; 
+                    filter: brightness(0.6);'
+            />
+            """
+        ),
+        # 바깥 box는 배경 레이어의 위치 기준점 역할을 합니다.
+        width="100%",
+        height="100%",
+        z_index="-2",
     )
 
 # --- 홈 페이지 본문 ---
 def home_page() -> rx.Component:
     """홈 페이지 컴포넌트"""
     return rx.box(
-        # 1. 배경 영상 컴포넌트
-        rx.video(
-            src="ecojourney/assets/eco_background.mp4", # assets 폴더에 넣은 영상 파일 경로
-            autoplay=True,             # 자동 재생
-            loop=True,                 # 반복 재생
-            muted=True,                # 소리 제거 (배경 영상은 보통 무음)
-            style={
-                # 화면 전체를 덮도록 위치 설정
-                "position": "fixed",
-                "top": "0",
-                "left": "0",
-                "width": "100%",
-                "height": "100%",
-                "objectFit": "cover",  # 화면 비율에 맞게 영상을 늘려 채움
-                "zIndex": "-1",        # 콘텐츠보다 뒤에 배치
-                "filter": "brightness(0.6)" # 영상이 너무 밝으면 콘텐츠가 안 보이므로 어둡게 처리
-            }
-        ),
-        
-        # 2. 헤더 추가
+        background_video(),
         header(),
         
-        # 3. 메인 콘텐츠 (움직이는 지구 대신 텍스트와 버튼만 중앙에 배치)
-        rx.center(
+        rx.box(
             rx.vstack(
-                # 콘텐츠가 영상 위에 잘 보이도록 색상 조정
-                rx.heading("EcoJourney", size="9", color="white", font_weight="extrabold"),
-                rx.text("당신의 탄소 발자국을 측정하고, 지구를 위한 작은 변화를 시작해보세요.",
-                        size="5", color="white", max_width="500px", text_align="center",
-                        margin_bottom="30px"),
+                rx.heading("EcoJourney", size="9", color="white", font_weight="bold", margin_right="100px"),
+                rx.text(
+                    "EcoJourney는 일상 속 행동을 기반으로\n"
+                    "당신의 탄소 발자국을 시각적으로 보여주는 서비스입니다.\n"
+                    "지금 바로 오늘의 흔적을 확인해보세요.",
+                    white_space="pre-line",
+                    size="5",
+                    color="white",
+                    text_align="left",
+                    margin_bottom="30px",
+                    margin_left="100px"
+                ),
                 rx.button(
-                    "탄소 발자국 측정 시작하기 🚀",
+                    "EcoJourney 자세히 보기",
                     on_click=rx.redirect("/intro"),
-                    size="3", color_scheme="green", padding="15px 30px", border_radius="lg",
+                    color="white",
+                    background_color="rgba(0, 0, 0, 0.22)",      # 연한 회색 배경
+                    border_radius="40px",            # pill 형태
+                    padding="27px 40px",             # 사진과 비슷한 두께
+                    border="4px solid rgba(255, 255, 255, 0.2)",      # 테두리 색
+                    font_size="1.1em",
+                    font_weight="semibold",
+                    margin_left="100px",
+                    _hover={
+                        "background_color": "rgba(0, 0, 0, 0.4)",    # hover 시 약간 진하게
+                    },
                 ),
                 
                 align_items="center",
                 spacing="5",
-                z_index="1", # 영상 위에 올라오도록 z-index 설정
+                z_index="1",
             ),
             width="100%",
             height="100vh",
             padding_top="80px",
             padding_bottom="80px",
+            z_index="1",
+            display="flex",
+            justify_content="flex-end",
+            align_items="center",
+            padding_right="4%",
         ),
         
-        # 4. 푸터 추가
         footer(),
         
         width="100%",
         min_height="100vh",
-        background_color="transparent", # 배경색은 영상에 맡김
+        background_color="transparent", 
+        # 메인 콘텐츠가 배경 위에서 올바르게 위치하도록 position: relative 추가
+        position="relative" 
     )
-
-# 이 코드 외에 전역 CSS 파일에 다음을 추가하면 지구 이미지에 회전 애니메이션이 적용됩니다.
-# styles.py (또는 custom_styles.css 등)
-"""
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-"""
