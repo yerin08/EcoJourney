@@ -20,13 +20,10 @@ def header() -> rx.Component:
             align="center",
             padding="1em 2em",
         ),
-        border_top="1px solid #eee",
         width="100%",
-        height="10%",
-        position="fixed",
-        top="0",
-        z_index="100",
-        background_color="rgba(0, 0, 0, 0.5)",
+        position="relative",
+        z_index="10",
+        background_color="transparent",
     )
 
 def footer() -> rx.Component:
