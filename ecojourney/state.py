@@ -48,6 +48,7 @@ CATEGORY_ORDER = list(CATEGORY_CONFIG.keys())
 CarbonActivity = Dict[str, Any]
 
 TRANSPORT_LIST = ["자동차", "버스", "지하철", "걷기", "자전거"]
+FOOD_LIST = ["육류", "야채류", "유제품류", "기타"]
 
 class AppState(rx.State):
     """
@@ -74,7 +75,22 @@ class AppState(rx.State):
     show_bike: bool = False
     
     # 입력 모드 (입력하기 버튼 눌렀는지)
-    input_mode: bool = False
+    trans_input_mode: bool = False
+
+    # ---------- 식품 선택 상태 ----------
+    selected_meat: bool = False        # 고기류
+    selected_veg: bool = False         # 채소류
+    selected_dairy: bool = False       # 유제품류
+    selected_other: bool = False       # 기타
+
+    # 입력 필드 표시 여부
+    show_meat: bool = False
+    show_veg: bool = False
+    show_dairy: bool = False
+    show_other: bool = False
+
+    # 입력 모드 여부
+    food_input_mode: bool = False
 
     # 카테고리별 입력 임시 저장소 (현재 페이지의 입력값)
     # transport_inputs: List[Dict[str, Any]] = []
@@ -121,14 +137,14 @@ class AppState(rx.State):
     # 2단계: 입력하기 버튼 클릭 -> 입력 필드 표시
     # ------------------------------
     
-    def show_input_fields(self):
+    def show_trans_input_fields(self):
         """선택된 항목들의 입력 필드를 표시"""
         self.show_car = self.selected_car
         self.show_bus = self.selected_bus
         self.show_subway = self.selected_subway
         self.show_walk = self.selected_walk
         self.show_bike = self.selected_bike
-        self.input_mode = True
+        self.trans_input_mode = True
         print(f"입력 모드 활성화! 자동차:{self.show_car}, 버스:{self.show_bus}, 지하철:{self.show_subway}, 걷기:{self.show_walk}, 자전거:{self.show_bike}", flush=True)
 
     # ------------------------------
@@ -192,9 +208,142 @@ class AppState(rx.State):
         self.all_activities = self.all_activities + transport_data
         
         print(f"저장된 교통 데이터: {transport_data}", flush=True)
+
+        # 입력모드 종료 + 선택 초기화
+        self.trans_input_mode = False
+
+        self.selected_car = False
+        self.selected_bus = False
+        self.selected_subway = False
+        self.selected_walk = False
+        self.selected_bike = False
+
+        self.show_car = False
+        self.show_bus = False
+        self.show_subway = False
+        self.show_walk = False
+        self.show_bike = False
         
         # 다음 페이지로 이동
         return rx.redirect("/input/food")
+
+    # =========================================================
+    # 1단계: 음식 버튼 토글
+    # =========================================================
+
+    def toggle_meat(self):
+        self.selected_meat = not self.selected_meat
+        print(f"고기류 선택: {self.selected_meat}", flush=True)
+
+    def toggle_veg(self):
+        self.selected_veg = not self.selected_veg
+        print(f"채소류 선택: {self.selected_veg}", flush=True)
+
+    def toggle_dairy(self):
+        self.selected_dairy = not self.selected_dairy
+        print(f"유제품류 선택: {self.selected_dairy}", flush=True)
+
+    def toggle_other(self):
+        self.selected_other = not self.selected_other
+        print(f"기타 선택: {self.selected_other}", flush=True)
+
+
+    # =========================================================
+    # 2단계: 입력하기 → 입력 필드 표시
+    # =========================================================
+
+    def show_food_input_fields(self):
+        """선택된 음식 항목들의 입력 필드를 표시"""
+        self.show_meat = self.selected_meat
+        self.show_veg = self.selected_veg
+        self.show_dairy = self.selected_dairy
+        self.show_other = self.selected_other
+
+        self.food_input_mode = True
+
+        print(
+            f"음식 입력모드 활성화! "
+            f"고기:{self.show_meat}, 채소:{self.show_veg}, 유제품:{self.show_dairy}, 기타:{self.show_other}",
+            flush=True
+        )
+
+
+    # =========================================================
+    # 3단계: 데이터 제출 및 저장
+    # =========================================================
+
+    def handle_food_submit(self, form_data: dict):
+        """음식 입력값 제출 처리"""
+
+        print(f"음식 데이터 수신: {form_data}", flush=True)
+
+        # 기존 음식 데이터 제거
+        self.all_activities = [
+            act for act in self.all_activities
+            if act.get("category") != "음식"
+        ]
+
+        food_data = []
+
+        # -----------------------------
+        # 입력값 저장
+        # -----------------------------
+        if self.show_meat and form_data.get("meat_value"):
+            food_data.append({
+                "category": "음식",
+                "activity_type": "고기류",
+                "subcategory": form_data.get("meat_sub", "기타"),
+                "value": float(form_data.get("meat_value", 0)),
+                "unit": form_data.get("meat_unit", "g"),
+            })
+
+        if self.show_veg and form_data.get("veg_value"):
+            food_data.append({
+                "category": "음식",
+                "activity_type": "채소류",
+                "subcategory": form_data.get("veg_sub", "기타"),
+                "value": float(form_data.get("veg_value", 0)),
+                "unit": form_data.get("veg_unit", "g"),
+            })
+
+        if self.show_dairy and form_data.get("dairy_value"):
+            food_data.append({
+                "category": "음식",
+                "activity_type": "유제품류",
+                "subcategory": form_data.get("dairy_sub", "기타"),
+                "value": float(form_data.get("dairy_value", 0)),
+                "unit": form_data.get("dairy_unit", "g"),
+            })
+
+        if self.show_other and form_data.get("other_value"):
+            food_data.append({
+                "category": "음식",
+                "activity_type": "기타",
+                "subcategory": form_data.get("other_sub", "기타"),
+                "value": float(form_data.get("other_value", 0)),
+                "unit": form_data.get("other_unit", "g"),
+            })
+
+        # 전체 활동 리스트에 추가
+        self.all_activities = self.all_activities + food_data
+
+        print(f"저장된 음식 데이터: {food_data}", flush=True)
+
+        # 입력모드 종료 + 선택 초기화
+        self.food_input_mode = False
+
+        self.selected_meat = False
+        self.selected_veg = False
+        self.selected_dairy = False
+        self.selected_other = False
+
+        self.show_meat = False
+        self.show_veg = False
+        self.show_dairy = False
+        self.show_other = False
+
+        # 다음 페이지 이동 (예: 생활 카테고리)
+        return rx.redirect("/input/clothing")
 
 
     # --- 헬퍼 함수 및 라우팅 로직 ---

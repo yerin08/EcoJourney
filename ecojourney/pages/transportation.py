@@ -63,7 +63,7 @@ def background_video() -> rx.Component:
 def transport_button(label: str, is_selected, on_click):
 
     # 🔥 input_mode 상태를 가져옴 (Var 그대로)
-    disabled = AppState.input_mode
+    disabled = AppState.trans_input_mode
 
     base = rx.hstack(
         rx.text(label),
@@ -182,10 +182,10 @@ def transportation_page():
                 # 입력하기 버튼
                 # ----------------------------------
                 rx.cond(
-                    ~AppState.input_mode,
+                    ~AppState.trans_input_mode,
                     rx.button(
                         "입력하기",
-                        on_click=AppState.show_input_fields,
+                        on_click=AppState.show_trans_input_fields,
                         color="black",
                         background_color="rgba(34,139,34,0.7)",
                         border_radius="40px",
@@ -204,7 +204,7 @@ def transportation_page():
                 # 입력 필드 렌더링
                 # ----------------------------------
                 rx.cond(
-                    AppState.input_mode,
+                    AppState.trans_input_mode,
                     rx.form(
                         rx.vstack(
                             rx.text(
