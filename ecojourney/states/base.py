@@ -50,4 +50,13 @@ class BaseState(rx.State):
     total_carbon_emission: float = 0.0
     is_report_calculated: bool = False
     calculation_details: List[Dict[str, Any]] = []  # 상세 계산 내역
+    
+    # 절약량 관련 데이터
+    total_saved_emission: float = 0.0  # 총 절약한 탄소 배출량 (kgCO2e)
+    saved_money: float = 0.0  # 절약한 금액 (원)
+    savings_details: List[Dict[str, Any]] = []  # 절약 상세 내역
+    
+    # 포인트 관련 데이터
+    points_breakdown: Dict[str, int] = {}  # 포인트 상세 내역 (절약량, 빈티지, 평균 대비)
+    total_points_earned: int = 0  # 총 획득 포인트
 
