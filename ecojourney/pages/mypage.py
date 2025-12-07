@@ -107,6 +107,57 @@ def mypage_page() -> rx.Component:
                         margin_bottom="30px",
                     ),
                     
+                    # 포인트 획득 내역 섹션
+                    rx.box(
+                        rx.vstack(
+                            rx.heading("📅 포인트 획득 내역", size="6", color="white", margin_bottom="20px"),
+                            rx.cond(
+                                AppState.points_log.length() > 0,
+                                rx.vstack(
+                                    rx.foreach(
+                                        AppState.points_log,
+                                        lambda log: rx.hstack(
+                                            rx.text(
+                                                log["date"],
+                                                color="white",
+                                                size="4",
+                                                font_weight="bold",
+                                                width="150px",
+                                            ),
+                                            rx.text(
+                                                f"+{log['points']} 포인트",
+                                                color="yellow.300",
+                                                size="4",
+                                                font_weight="bold",
+                                            ),
+                                            spacing="4",
+                                            justify="between",
+                                            width="100%",
+                                            padding="10px",
+                                            border_radius="8px",
+                                            background="rgba(255, 255, 255, 0.1)",
+                                            margin_bottom="8px",
+                                        ),
+                                    ),
+                                    spacing="2",
+                                    width="100%",
+                                ),
+                                rx.text(
+                                    "아직 획득한 포인트가 없습니다.",
+                                    color="gray.400",
+                                    size="3",
+                                ),
+                            ),
+                            spacing="3",
+                        ),
+                        padding="30px",
+                        border_radius="16px",
+                        background="rgba(0, 0, 0, 0.3)",
+                        width="100%",
+                        max_width="600px",
+                        margin_bottom="30px",
+                    ),
+                    
                     # 챌린지 진행률 섹션
                     rx.box(
                         rx.vstack(
