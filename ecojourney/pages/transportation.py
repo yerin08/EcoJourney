@@ -9,11 +9,11 @@ def header() -> rx.Component:
             rx.button(
                 "EcoJourney",
                 on_click=rx.redirect("/"),
-                background_color="transparent",   # 버튼 배경 제거
+                background_color="transparent",  
                 color="white",
                 font_size="1.5em",
                 font_weight="bold",
-                padding="0",                     # 버튼 기본 padding 제거
+                padding="0",           
                 border="none",
                 border_radius="8px",
                 cursor="pointer",
@@ -29,11 +29,10 @@ def header() -> rx.Component:
     )
 
 def background_video() -> rx.Component:
-    """순수 HTML5 <video> 태그를 사용하여 자동 재생을 강제하고 레이어를 안정화합니다."""
     return rx.box(
-        # 💡 rx.html을 사용하여 필수 속성을 가진 순수 HTML 태그를 삽입
+        
         rx.html(
-            # src 경로가 정확한지 확인하면서, 필수 속성(autoplay, loop, muted, playsinline)을 강제합니다.
+            
             """
             <video autoplay loop muted playsinline 
                 src="/transportation_background.mp4" 
@@ -50,7 +49,6 @@ def background_video() -> rx.Component:
             />
             """
         ),
-        # 바깥 box는 배경 레이어의 위치 기준점 역할을 합니다.
         width="100%",
         height="100%",
         z_index="-2",
@@ -62,7 +60,7 @@ def background_video() -> rx.Component:
 
 def transport_button(label: str, is_selected, on_click):
 
-    # 🔥 input_mode 상태를 가져옴 (Var 그대로)
+
     disabled = AppState.trans_input_mode
 
     base = rx.hstack(
@@ -70,7 +68,7 @@ def transport_button(label: str, is_selected, on_click):
         spacing="2",
     )
 
-    # 🔥 스타일도 rx.cond 로 처리해야 함
+    
     selected_bg = rx.cond(disabled, "rgba(0,0,0,0.2)", "rgba(0,0,0,0.52)")
     default_bg  = rx.cond(disabled, "rgba(0,0,0,0.1)", "rgba(0,0,0,0.22)")
 
@@ -78,12 +76,12 @@ def transport_button(label: str, is_selected, on_click):
 
     return rx.button(
         base,
-        # 🔥 클릭 비활성화 → on_click 제거 조건화
+        
         on_click=rx.cond(disabled, None, on_click),
 
-        disabled=disabled,  # 🔥 Reflex는 disabled에 Var 허용
+        disabled=disabled,
 
-        # 🔥 선택 여부에 따른 스타일
+        # 선택 여부에 따른 스타일
         background_color=rx.cond(is_selected, selected_bg, default_bg),
 
         border_radius="40px",
@@ -106,7 +104,7 @@ def transport_input_field(label: str, value_name: str, unit_name: str):
                 label,
                 font_weight="bold",
                 min_width="80px",
-                color="black",       # ← 여기만 바꾸면 바로 해결됨
+                color="rgba(255, 255, 255, 0.8)",
             ),
             rx.select(
                 UNITS,
@@ -133,7 +131,7 @@ def transport_input_field(label: str, value_name: str, unit_name: str):
         padding="16px 20px",
         border_radius="16px",
         background_color="rgba(0, 0, 0, 0.1)",
-        border="2px solid rgba(0, 0, 0, 0.2)",
+        border="2px solid rgba(255, 255, 255, 0.5)",
         margin_y="10px",
         width="100%",
         max_width="400px",
@@ -161,7 +159,7 @@ def transportation_page():
 
                 # ----------------------------------
                 # 버튼 선택 영역
-                # ----------------------------------
+                # -------------------------------Trans_
                 rx.vstack(
                     rx.hstack(
                         transport_button("자동차", AppState.selected_car, AppState.toggle_car),
@@ -186,7 +184,7 @@ def transportation_page():
                     rx.button(
                         "입력하기",
                         on_click=AppState.show_trans_input_fields,
-                        color="black",
+                        color="rgba(255, 255, 255, 0.8)",
                         background_color="rgba(34,139,34,0.7)",
                         border_radius="40px",
                         padding="24px 45px",
@@ -209,7 +207,7 @@ def transportation_page():
                         rx.vstack(
                             rx.text(
                                 "이용량을 입력해주세요",
-                                color="black",
+                                color="rgba(255, 255, 255, 0.8)",
                                 font_size="1.2em",
                                 font_weight="bold",
                                 margin_bottom="10px",
@@ -232,7 +230,7 @@ def transportation_page():
                             rx.button(
                                 "다음",
                                 type="submit",
-                                color="black",
+                                color="rgba(255, 255, 255, 0.8)",
                                 background_color="rgba(34,139,34,0.7)",
                                 border_radius="40px",
                                 padding="20px 50px",

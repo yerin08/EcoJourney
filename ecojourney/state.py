@@ -1,517 +1,667 @@
-# state.py
-
 import reflex as rx
-from typing import Dict, List, Any, Optional
-import logging
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-
-# CATEGORY_CONFIG: 모든 카테고리 데이터를 담는 핵심 딕셔너리
-# NOTE: 이 딕셔너리의 순서(keys)는 페이지 이동 순서를 결정합니다.
-CATEGORY_CONFIG = {
-    "교통": {
-        "path": "transportation", # URL 경로 ("/input/transportation")에 사용
-        "description": "오늘의 교통 수단 이용량(거리 또는 시간)을 입력해주세요.",
-        "activities": ["자동차", "지하철", "버스", "걷기", "자전거"],
-        "units": ["km", "분"],
-        "inputs_key": "transport_inputs"
-    },
-    "식품": {
-        "path": "food",
-        "description": "오늘 섭취한 주요 식품 카테고리를 입력해주세요.",
-        "activities": ["육류", "채소/과일", "가공식품", "유제품"],
-        "units": ["g", "회"],
-        "inputs_key": "food_inputs"
-    },
-    "의류": {
-        "path": "clothing",
-        "description": "오늘 쇼핑한 의류 및 잡화의 종류와 개수를 입력해주세요.",
-        "activities": ["상의", "하의", "신발", "가방/잡화"],
-        "units": ["개"],
-        "inputs_key": "clothing_inputs"
-    }
-}
-
-CATEGORY_ORDER = list(CATEGORY_CONFIG.keys())
-
-# 💡 서비스 함수를 직접 호출 (FastAPI 라우터 불필요)
-# State에서 직접 서비스 로직을 호출합니다
-
-# 탄소 배출량 데이터를 저장할 딕셔너리 구조 정의
-# 필수 필드: category, activity_type, value, unit
-CarbonActivity = Dict[str, Any]
-
-TRANSPORT_LIST = ["자동차", "버스", "지하철", "걷기", "자전거"]
-FOOD_LIST = ["육류", "야채류", "유제품류", "기타"]
+from typing import Any, Dict, List
+import plotly.graph_objects as go
+import plotly.express as px
 
 class AppState(rx.State):
-    """
-    EcoJourney 앱의 전역 상태를 관리하는 클래스.
-    """
-    current_category: str = "교통"
-    
-    # 2. 카테고리별 사용자 입력값 저장소
-    all_activities: List[CarbonActivity] = []
 
-    # ---------- 교통수단 선택 상태 ----------
-    # 1단계: 버튼으로 선택 (selected_XXX)
+    # -----------------------------------
+    # 공통 전역 상태
+    # -----------------------------------
+    all_activities: List[Dict[str, Any]] = []
+    current_category: str = "교통"
+
+    # 페이지 이동용 결과 값
+    total_carbon_emission: float = 0.0
+    is_report_calculated: bool = False
+
+    show_ai: bool = False
+    # -----------------------------------
+    # 공통 유틸 함수들
+    # -----------------------------------
+
+    # 1) boolean 변수 setter
+    def set_bool(self, key: str, value: bool):
+        setattr(self, key, value)
+
+    # 2) toggle
+    def toggle_bool(self, key: str):
+        setattr(self, key, not getattr(self, key))
+
+    # 3) 여러 필드 한 번에 reset
+    def reset_fields(self, keys: list):
+        for k in keys:
+            setattr(self, k, False)
+
+    # 4) 입력 필드 표시 로직 공통처리
+    def show_fields(self, selected_keys: list, show_keys: list, mode_key: str):
+        for sel, show in zip(selected_keys, show_keys):
+            setattr(self, show, getattr(self, sel))
+        setattr(self, mode_key, True)
+
+    # 5) 제출 로직 완전 공통화
+    def process_submit(
+        self,
+        form_data: dict,
+        category_name: str,
+        activity_names: list,
+        value_keys: list,
+        unit_keys: list,
+        sub_keys: list,          # subcategory 없는 경우 None
+        reset_keys: list,
+        redirect_path: str
+    ):
+        """카테고리별 제출 로직을 완전히 공통화한 함수"""
+
+        # 기존 데이터 제거
+        self.all_activities = [
+            act for act in self.all_activities
+            if act.get("category") != category_name
+        ]
+
+        new_items = []
+
+        for name, vkey, ukey, skey in zip(activity_names, value_keys, unit_keys, sub_keys):
+
+            if form_data.get(vkey):  # 값이 입력되었을 때만 저장
+                item = {
+                    "category": category_name,
+                    "activity_type": name,
+                    "value": float(form_data[vkey]),
+                }
+                # unit 있는 경우만 저장
+                if ukey:
+                    item["unit"] = form_data.get(ukey)
+
+                if skey:   # subcategory가 있는 경우만
+                    item["subcategory"] = form_data.get(skey, "기타")
+
+                new_items.append(item)
+
+        # 저장
+        for act in new_items:
+            self.all_activities.append(act)
+
+        # ------------------------------
+        # 🔥 터미널 상태 출력 (디버깅용)
+        # ------------------------------
+        print(f"\n[{category_name}] 저장된 데이터:", new_items, flush=True)
+        print(f"→ all_activities:", self.all_activities, flush=True)
+        print("-" * 50, flush=True)
+
+        # 상태 초기화
+        self.reset_fields(reset_keys)
+
+        # 다음 페이지 이동
+        return rx.redirect(redirect_path)
+
+
+    # ==========================================================
+    # ----------- 각 카테고리별 상태 변수 + 처리 로직 ----------
+    # ==========================================================
+
+
+    # ==========================================================
+    # 1) 교통 (Transportation)
+    # ==========================================================
+
     selected_car: bool = False
     selected_bus: bool = False
     selected_subway: bool = False
     selected_walk: bool = False
     selected_bike: bool = False
-    
-    # 2단계: 입력하기 버튼 누른 후 입력 필드 표시 (show_XXX)
+
     show_car: bool = False
     show_bus: bool = False
     show_subway: bool = False
     show_walk: bool = False
     show_bike: bool = False
-    
-    # 입력 모드 (입력하기 버튼 눌렀는지)
+
     trans_input_mode: bool = False
 
-    # ---------- 식품 선택 상태 ----------
-    selected_meat: bool = False        # 고기류
-    selected_veg: bool = False         # 채소류
-    selected_dairy: bool = False       # 유제품류
-    selected_other: bool = False       # 기타
+    # toggle 메서드
+    def toggle_car(self): self.toggle_bool("selected_car")
+    def toggle_bus(self): self.toggle_bool("selected_bus")
+    def toggle_subway(self): self.toggle_bool("selected_subway")
+    def toggle_walk(self): self.toggle_bool("selected_walk")
+    def toggle_bike(self): self.toggle_bool("selected_bike")
 
-    # 입력 필드 표시 여부
+    # 입력 필드 표시
+    def show_trans_input_fields(self):
+        self.show_fields(
+            selected_keys=[
+                "selected_car", "selected_bus", "selected_subway",
+                "selected_walk", "selected_bike"
+            ],
+            show_keys=[
+                "show_car", "show_bus", "show_subway",
+                "show_walk", "show_bike"
+            ],
+            mode_key="trans_input_mode"
+        )
+
+    # 제출 처리
+    def handle_transport_submit(self, form_data: dict):
+        return self.process_submit(
+            form_data=form_data,
+            category_name="교통",
+            activity_names=["자동차", "버스", "지하철", "걷기", "자전거"],
+            value_keys=["car_value", "bus_value", "subway_value", "walk_value", "bike_value"],
+            unit_keys=["car_unit", "bus_unit", "subway_unit", "walk_unit", "bike_unit"],
+            sub_keys=[None, None, None, None, None],  # 교통은 subcategory 없음
+            reset_keys=[
+                "selected_car", "selected_bus", "selected_subway",
+                "selected_walk", "selected_bike",
+                "show_car", "show_bus", "show_subway",
+                "show_walk", "show_bike",
+                "trans_input_mode"
+            ],
+            redirect_path="/input/food"
+        )
+
+
+    # ==========================================================
+    # 2) 음식 (Food)
+    # ==========================================================
+
+    selected_meat: bool = False
+    selected_veg: bool = False
+    selected_dairy: bool = False
+    selected_other: bool = False
+
     show_meat: bool = False
     show_veg: bool = False
     show_dairy: bool = False
     show_other: bool = False
 
-    # 입력 모드 여부
     food_input_mode: bool = False
 
-    # 카테고리별 입력 임시 저장소 (현재 페이지의 입력값)
-    # transport_inputs: List[Dict[str, Any]] = []
-    # food_inputs: List[Dict[str, Any]] = []
-    # clothing_inputs: List[Dict[str, Any]] = []
-    # electricity_inputs: List[Dict[str, Any]] = []
-    # water_inputs: List[Dict[str, Any]] = []
-    # waste_inputs: List[Dict[str, Any]] = []
-    
-    # UI 및 오류 메시지
-    # is_loading: bool = False
-    # error_message: str = ""
-    
-    # 결과 리포트 데이터
-    total_carbon_emission: float = 0.0
-    # category_breakdown: Dict[str, float] = {}
-    is_report_calculated: bool = False
+    # toggle
+    def toggle_meat(self): self.toggle_bool("selected_meat")
+    def toggle_veg(self): self.toggle_bool("selected_veg")
+    def toggle_dairy(self): self.toggle_bool("selected_dairy")
+    def toggle_other(self): self.toggle_bool("selected_other")
 
-    # ------------------------------
-    # 1단계: 버튼 토글 (선택/해제)
-    # ------------------------------
-    
-    def toggle_car(self):
-        self.selected_car = not self.selected_car
-        print(f"자동차 선택: {self.selected_car}", flush=True)
-    
-    def toggle_bus(self):
-        self.selected_bus = not self.selected_bus
-        print(f"버스 선택: {self.selected_bus}", flush=True)
-    
-    def toggle_subway(self):
-        self.selected_subway = not self.selected_subway
-        print(f"지하철 선택: {self.selected_subway}", flush=True)
-    
-    def toggle_walk(self):
-        self.selected_walk = not self.selected_walk
-        print(f"걷기 선택: {self.selected_walk}", flush=True)
-    
-    def toggle_bike(self):
-        self.selected_bike = not self.selected_bike
-        print(f"자전거 선택: {self.selected_bike}", flush=True)
-
-    # ------------------------------
-    # 2단계: 입력하기 버튼 클릭 -> 입력 필드 표시
-    # ------------------------------
-    
-    def show_trans_input_fields(self):
-        """선택된 항목들의 입력 필드를 표시"""
-        self.show_car = self.selected_car
-        self.show_bus = self.selected_bus
-        self.show_subway = self.selected_subway
-        self.show_walk = self.selected_walk
-        self.show_bike = self.selected_bike
-        self.trans_input_mode = True
-        print(f"입력 모드 활성화! 자동차:{self.show_car}, 버스:{self.show_bus}, 지하철:{self.show_subway}, 걷기:{self.show_walk}, 자전거:{self.show_bike}", flush=True)
-
-    # ------------------------------
-    # 3단계: 데이터 제출 및 다음 페이지 이동
-    # ------------------------------
-    
-    def handle_transport_submit(self, form_data: dict):
-        """교통 입력값 폼 제출 -> 데이터 저장 -> 다음 페이지 이동"""
-        print(f"교통 데이터 수신: {form_data}", flush=True)
-        
-        # 기존 교통 데이터 제거
-        self.all_activities = [
-            act for act in self.all_activities 
-            if act.get("category") != "교통"
-        ]
-        
-        # 선택된 교통수단 데이터 저장
-        transport_data = []
-        
-        if self.show_car and form_data.get("car_value"):
-            transport_data.append({
-                "category": "교통",
-                "activity_type": "자동차",
-                "value": float(form_data.get("car_value", 0)),
-                "unit": form_data.get("car_unit", "km"),
-            })
-        
-        if self.show_bus and form_data.get("bus_value"):
-            transport_data.append({
-                "category": "교통",
-                "activity_type": "버스",
-                "value": float(form_data.get("bus_value", 0)),
-                "unit": form_data.get("bus_unit", "km"),
-            })
-        
-        if self.show_subway and form_data.get("subway_value"):
-            transport_data.append({
-                "category": "교통",
-                "activity_type": "지하철",
-                "value": float(form_data.get("subway_value", 0)),
-                "unit": form_data.get("subway_unit", "km"),
-            })
-        
-        if self.show_walk and form_data.get("walk_value"):
-            transport_data.append({
-                "category": "교통",
-                "activity_type": "걷기",
-                "value": float(form_data.get("walk_value", 0)),
-                "unit": form_data.get("walk_unit", "km"),
-            })
-        
-        if self.show_bike and form_data.get("bike_value"):
-            transport_data.append({
-                "category": "교통",
-                "activity_type": "자전거",
-                "value": float(form_data.get("bike_value", 0)),
-                "unit": form_data.get("bike_unit", "km"),
-            })
-        
-        # 전체 활동 목록에 추가
-        self.all_activities = self.all_activities + transport_data
-        
-        print(f"저장된 교통 데이터: {transport_data}", flush=True)
-
-        # 입력모드 종료 + 선택 초기화
-        self.trans_input_mode = False
-
-        self.selected_car = False
-        self.selected_bus = False
-        self.selected_subway = False
-        self.selected_walk = False
-        self.selected_bike = False
-
-        self.show_car = False
-        self.show_bus = False
-        self.show_subway = False
-        self.show_walk = False
-        self.show_bike = False
-        
-        # 다음 페이지로 이동
-        return rx.redirect("/input/food")
-
-    # =========================================================
-    # 1단계: 음식 버튼 토글
-    # =========================================================
-
-    def toggle_meat(self):
-        self.selected_meat = not self.selected_meat
-        print(f"고기류 선택: {self.selected_meat}", flush=True)
-
-    def toggle_veg(self):
-        self.selected_veg = not self.selected_veg
-        print(f"채소류 선택: {self.selected_veg}", flush=True)
-
-    def toggle_dairy(self):
-        self.selected_dairy = not self.selected_dairy
-        print(f"유제품류 선택: {self.selected_dairy}", flush=True)
-
-    def toggle_other(self):
-        self.selected_other = not self.selected_other
-        print(f"기타 선택: {self.selected_other}", flush=True)
-
-
-    # =========================================================
-    # 2단계: 입력하기 → 입력 필드 표시
-    # =========================================================
-
+    # 필드 표시
     def show_food_input_fields(self):
-        """선택된 음식 항목들의 입력 필드를 표시"""
-        self.show_meat = self.selected_meat
-        self.show_veg = self.selected_veg
-        self.show_dairy = self.selected_dairy
-        self.show_other = self.selected_other
+        self.show_fields(
+            selected_keys=[
+                "selected_meat", "selected_veg",
+                "selected_dairy", "selected_other"
+            ],
+            show_keys=[
+                "show_meat", "show_veg",
+                "show_dairy", "show_other"
+            ],
+            mode_key="food_input_mode"
+        )
 
-        self.food_input_mode = True
-
-        print(
-            f"음식 입력모드 활성화! "
-            f"고기:{self.show_meat}, 채소:{self.show_veg}, 유제품:{self.show_dairy}, 기타:{self.show_other}",
-            flush=True
+    # 제출
+    def handle_food_submit(self, form_data: dict):
+        return self.process_submit(
+            form_data=form_data,
+            category_name="음식",
+            activity_names=["고기류", "채소류", "유제품류", "기타"],
+            value_keys=["meat_value", "veg_value", "dairy_value", "other_value"],
+            unit_keys=["meat_unit", "veg_unit", "dairy_unit", "other_unit"],
+            sub_keys=["meat_sub", "veg_sub", "dairy_sub", "other_sub"],
+            reset_keys=[
+                "selected_meat", "selected_veg",
+                "selected_dairy", "selected_other",
+                "show_meat", "show_veg",
+                "show_dairy", "show_other",
+                "food_input_mode"
+            ],
+            redirect_path="/input/clothing"
         )
 
 
-    # =========================================================
-    # 3단계: 데이터 제출 및 저장
-    # =========================================================
+    # ==========================================================
+    # 3) 의류 (Clothing)
+    # ==========================================================
 
-    def handle_food_submit(self, form_data: dict):
-        """음식 입력값 제출 처리"""
+    selected_tshirts: bool = False
+    selected_jeans: bool = False
+    selected_shoes: bool = False
+    selected_socks: bool = False
+    selected_cap: bool = False
 
-        print(f"음식 데이터 수신: {form_data}", flush=True)
+    show_tshirts: bool = False
+    show_jeans: bool = False
+    show_shoes: bool = False
+    show_socks: bool = False
+    show_cap: bool = False
 
-        # 기존 음식 데이터 제거
+    clothing_input_mode: bool = False
+
+    # toggle
+    def toggle_tshirts(self): self.toggle_bool("selected_tshirts")
+    def toggle_jeans(self): self.toggle_bool("selected_jeans")
+    def toggle_shoes(self): self.toggle_bool("selected_shoes")
+    def toggle_socks(self): self.toggle_bool("selected_socks")
+    def toggle_cap(self): self.toggle_bool("selected_cap")
+
+    # 필드 표시
+    def show_clothing_input_fields(self):
+        self.show_fields(
+            selected_keys=[
+                "selected_tshirts", "selected_jeans",
+                "selected_shoes", "selected_socks",
+                "selected_cap"
+            ],
+            show_keys=[
+                "show_tshirts", "show_jeans",
+                "show_shoes", "show_socks",
+                "show_cap"
+            ],
+            mode_key="clothing_input_mode"
+        )
+
+    # 제출
+    def handle_clothing_submit(self, form_data: dict):
+        return self.process_submit(
+            form_data=form_data,
+            category_name="의류",
+            activity_names=["티셔츠", "청바지", "신발", "양말", "모자"],
+            value_keys=["tshirts_value", "jeans_value", "shoes_value", "socks_value", "cap_value"],
+            unit_keys=[None, None, None, None, None],
+            sub_keys=["tshirts_sub", "jeans_sub", "shoes_sub", "socks_sub", "cap_sub"],
+            reset_keys=[
+                "selected_tshirts", "selected_jeans",
+                "selected_shoes", "selected_socks",
+                "selected_cap",
+                "show_tshirts", "show_jeans",
+                "show_shoes", "show_socks",
+                "show_cap",
+                "clothing_input_mode"
+            ],
+            redirect_path="/input/electricity"
+        )
+
+
+    # ==========================================================
+    # 4) 전기 (Electricity)
+    # ==========================================================
+
+    selected_ac: bool = False       # 냉방기
+    selected_heater: bool = False   # 난방기
+
+    show_ac: bool = False
+    show_heater: bool = False
+
+    electricity_input_mode: bool = False
+
+    # toggle
+    def toggle_ac(self): 
+        self.toggle_bool("selected_ac")
+
+    def toggle_heater(self): 
+        self.toggle_bool("selected_heater")
+
+    # 입력 필드 표시
+    def show_electricity_input_fields(self):
+        self.show_fields(
+            selected_keys=[
+                "selected_ac",
+                "selected_heater"
+            ],
+            show_keys=[
+                "show_ac",
+                "show_heater"
+            ],
+            mode_key="electricity_input_mode"
+    )
+
+    # 제출 로직
+    def handle_electricity_submit(self, form_data: dict):
+        return self.process_submit(
+            form_data=form_data,
+            category_name="전기",
+            activity_names=["냉방기", "난방기"],
+            value_keys=["ac_value", "heater_value"],
+
+            # 단위는 "시간" 고정 → UI가 form_data에 넣도록 하면 OK
+            # 또는 unit_keys=[None, None] 로 두고 unit을 제외할 수도 있음.
+            unit_keys=[None, None],        # ← 단위 없음
+            sub_keys=[None, None],         # ← 서브카테고리 없음
+
+            reset_keys=[
+                "selected_ac", "selected_heater",
+                "show_ac", "show_heater",
+                "electricity_input_mode"
+            ],
+            redirect_path="/input/water"    # 다음 페이지로 이동
+    )
+
+    # ==========================================================
+    # 5) 물 (Water)
+    # ==========================================================
+
+    selected_shower: bool = False
+    selected_dish: bool = False
+    selected_laundry: bool = False
+
+    show_shower: bool = False
+    show_dish: bool = False
+    show_laundry: bool = False
+
+    water_input_mode: bool = False
+
+    # toggle
+    def toggle_shower(self): self.toggle_bool("selected_shower")
+    def toggle_dish(self): self.toggle_bool("selected_dish")
+    def toggle_laundry(self): self.toggle_bool("selected_laundry")
+
+    # 입력 필드 표시
+    def show_water_input_fields(self):
+        self.show_fields(
+            selected_keys=[
+                "selected_shower",
+                "selected_dish",
+                "selected_laundry",
+            ],
+            show_keys=[
+                "show_shower",
+                "show_dish",
+                "show_laundry",
+            ],
+            mode_key="water_input_mode"
+        )
+
+    # 제출 처리
+    def handle_water_submit(self, form_data: dict):
+
+        # 기존 물 데이터 제거
         self.all_activities = [
             act for act in self.all_activities
-            if act.get("category") != "음식"
+            if act.get("category") != "물"
         ]
 
-        food_data = []
+        new_items = []
 
-        # -----------------------------
-        # 입력값 저장
-        # -----------------------------
-        if self.show_meat and form_data.get("meat_value"):
-            food_data.append({
-                "category": "음식",
-                "activity_type": "고기류",
-                "subcategory": form_data.get("meat_sub", "기타"),
-                "value": float(form_data.get("meat_value", 0)),
-                "unit": form_data.get("meat_unit", "g"),
+        # 샤워 — unit(회/분) 선택 + value
+        if form_data.get("shower_value"):
+            new_items.append({
+                "category": "물",
+                "activity_type": "샤워",
+                "value": float(form_data["shower_value"]),
+                "unit": form_data.get("shower_unit", "회")
             })
 
-        if self.show_veg and form_data.get("veg_value"):
-            food_data.append({
-                "category": "음식",
-                "activity_type": "채소류",
-                "subcategory": form_data.get("veg_sub", "기타"),
-                "value": float(form_data.get("veg_value", 0)),
-                "unit": form_data.get("veg_unit", "g"),
+        # 설거지
+        if form_data.get("dish_value"):
+            new_items.append({
+                "category": "물",
+                "activity_type": "설거지",
+                "value": float(form_data["dish_value"]),
+                "unit": "회"
             })
 
-        if self.show_dairy and form_data.get("dairy_value"):
-            food_data.append({
-                "category": "음식",
-                "activity_type": "유제품류",
-                "subcategory": form_data.get("dairy_sub", "기타"),
-                "value": float(form_data.get("dairy_value", 0)),
-                "unit": form_data.get("dairy_unit", "g"),
+        # 세탁
+        if form_data.get("laundry_value"):
+            new_items.append({
+                "category": "물",
+                "activity_type": "세탁",
+                "value": float(form_data["laundry_value"]),
+                "unit": "회"
             })
 
-        if self.show_other and form_data.get("other_value"):
-            food_data.append({
-                "category": "음식",
-                "activity_type": "기타",
-                "subcategory": form_data.get("other_sub", "기타"),
-                "value": float(form_data.get("other_value", 0)),
-                "unit": form_data.get("other_unit", "g"),
-            })
+        # 저장
+        for item in new_items:
+            self.all_activities.append(item)
 
-        # 전체 활동 리스트에 추가
-        self.all_activities = self.all_activities + food_data
+        print("\n[물] 저장된 데이터:", new_items, flush=True)
+        print("→ all_activities:", self.all_activities, flush=True)
+        print("-" * 50, flush=True)
 
-        print(f"저장된 음식 데이터: {food_data}", flush=True)
+        # 상태 초기화
+        self.reset_fields([
+            "selected_shower", "selected_dish", "selected_laundry",
+            "show_shower", "show_dish", "show_laundry",
+            "water_input_mode"
+        ])
 
-        # 입력모드 종료 + 선택 초기화
-        self.food_input_mode = False
+        return rx.redirect("/input/waste")
 
-        self.selected_meat = False
-        self.selected_veg = False
-        self.selected_dairy = False
-        self.selected_other = False
+    # ==========================================================
+    # 6) 쓰레기 (Waste)
+    # ==========================================================
 
-        self.show_meat = False
-        self.show_veg = False
-        self.show_dairy = False
-        self.show_other = False
+    selected_general: bool = False
+    selected_plastic: bool = False
+    selected_paper: bool = False
+    selected_glass: bool = False
+    selected_can: bool = False
 
-        # 다음 페이지 이동 (예: 생활 카테고리)
-        return rx.redirect("/input/clothing")
+    show_general: bool = False
+    show_plastic: bool = False
+    show_paper: bool = False
+    show_glass: bool = False
+    show_can: bool = False
 
+    waste_input_mode: bool = False
 
-    # --- 헬퍼 함수 및 라우팅 로직 ---
+    # toggle
+    def toggle_general(self): self.toggle_bool("selected_general")
+    def toggle_plastic(self): self.toggle_bool("selected_plastic")
+    def toggle_paper(self): self.toggle_bool("selected_paper")
+    def toggle_glass(self): self.toggle_bool("selected_glass")
+    def toggle_can(self): self.toggle_bool("selected_can")
 
-    # def get_current_input_list(self) -> List[Dict[str, Any]]:
-    #     """현재 카테고리에 해당하는 입력 리스트를 반환합니다."""
-    #     if self.current_category == "교통":
-    #         return self.transport_inputs
-    #     elif self.current_category == "식품":
-    #         return self.food_inputs
-    #     elif self.current_category == "의류":
-    #         return self.clothing_inputs
-    #     elif self.current_category == "전기":
-    #         return self.electricity_inputs
-    #     elif self.current_category == "물":
-    #         return self.water_inputs
-    #     elif self.current_category == "쓰레기":
-    #         return self.waste_inputs
-    #     return []
+    # 입력 필드 표시
+    def show_waste_input_fields(self):
+        self.show_fields(
+            selected_keys=[
+                "selected_general",
+                "selected_plastic",
+                "selected_paper",
+                "selected_glass",
+                "selected_can",
+            ],
+            show_keys=[
+                "show_general",
+                "show_plastic",
+                "show_paper",
+                "show_glass",
+                "show_can",
+            ],
+            mode_key="waste_input_mode"
+        )
 
-    # def set_current_input_list(self, new_list: List[Dict[str, Any]]):
-    #     """현재 카테고리에 해당하는 입력 리스트를 설정합니다."""
-    #     if self.current_category == "교통":
-    #         self.transport_inputs = new_list
-    #     elif self.current_category == "식품":
-    #         self.food_inputs = new_list
-    #     elif self.current_category == "의류":
-    #         self.clothing_inputs = new_list
-    #     elif self.current_category == "전기":
-    #         self.electricity_inputs = new_list
-    #     elif self.current_category == "물":
-    #         self.water_inputs = new_list
-    #     elif self.current_category == "쓰레기":
-    #         self.waste_inputs = new_list
+    # 제출 로직
+    def handle_waste_submit(self, form_data: dict):
+
+        # 기존 쓰레기 카테고리 제거
+        self.all_activities = [
+            act for act in self.all_activities
+            if act.get("category") != "쓰레기"
+        ]
+
+        new_items = []
+
+        # 공통 항목명
+        names = ["일반쓰레기", "플라스틱", "종이", "유리", "캔"]
+        value_keys = ["general_value", "plastic_value", "paper_value", "glass_value", "can_value"]
+        unit_keys  = ["general_unit", "plastic_unit", "paper_unit", "glass_unit", "can_unit"]
+
+        for name, vkey, ukey in zip(names, value_keys, unit_keys):
+            if form_data.get(vkey):
+                new_items.append({
+                    "category": "쓰레기",
+                    "activity_type": name,
+                    "value": float(form_data[vkey]),
+                    "unit": form_data.get(ukey, "개")
+                })
+
+        # 저장
+        for item in new_items:
+            self.all_activities.append(item)
+
+        print("\n[쓰레기] 저장된 데이터:", new_items, flush=True)
+        print("→ all_activities:", self.all_activities, flush=True)
+        print("-" * 50, flush=True)
+
+        # 상태 초기화
+        self.reset_fields([
+            "selected_general", "selected_plastic", "selected_paper",
+            "selected_glass", "selected_can",
+            "show_general", "show_plastic", "show_paper",
+            "show_glass", "show_can",
+            "waste_input_mode"
+        ])
+
+        return rx.redirect("/report")
+
+    # ==========================================================
+    # 리포트 페이지용 Computed Variables
+    # ==========================================================
+
+    # 카테고리별 평균 (한국 기준)
+    _category_avg: Dict[str, float] = {
+        "교통": 3.5,
+        "음식": 2.8,
+        "전기": 2.2,
+        "물": 0.3,
+        "의류": 0.5,
+        "쓰레기": 0.7,
+    }
+
+    def toggle_ai(self):
+        """AI 솔루션 표시 토글"""
+        self.show_ai = not self.show_ai
+
+    @rx.var
+    def category_sums(self) -> Dict[str, float]:
+        """카테고리별 탄소 배출 합계 계산"""
+        result: Dict[str, float] = {}
+        for act in self.all_activities:
+            cat = act.get("category", "기타")
+            # 임시로 value를 탄소 배출량으로 사용 (실제 계산 로직 필요시 수정)
+            val = float(act.get("carbon_emission", act.get("value", 0)))
+            result[cat] = result.get(cat, 0) + val
+        return result
+
+    @rx.var
+    def total_emission(self) -> float:
+        """총 탄소 배출량"""
+        return sum(self.category_sums.values())
+
+    @rx.var
+    def total_emission_text(self) -> str:
+        """총 배출량 텍스트"""
+        return f"총 배출량: {self.total_emission:.2f} kgCO₂e"
+
+    @rx.var
+    def badge_text(self) -> str:
+        """배출 등급 텍스트"""
+        value = self.total_emission
+        if value < 5:
+            return "등급: 🌱 Beginner Level (매우 적음)"
+        elif value < 10:
+            return "등급: 🌿 Eco Learner (평균 이하)"
+        elif value < 15:
+            return "등급: 🌲 Sustainable Member (약간 높음)"
+        elif value < 20:
+            return "등급: 🌳 Green Guardian (높음)"
+        else:
+            return "등급: 🔥 Carbon Overload (매우 높음)"
+
+    @rx.var
+    def chart_categories(self) -> List[str]:
+        """차트용 카테고리 목록"""
+        if self.category_sums:
+            return list(self.category_sums.keys())
+        return ["데이터 없음"]
+
+    @rx.var
+    def chart_user_values(self) -> List[float]:
+        """차트용 사용자 배출량"""
+        if self.category_sums:
+            return list(self.category_sums.values())
+        return [0]
+
+    @rx.var
+    def chart_avg_values(self) -> List[float]:
+        """차트용 한국 평균값"""
+        return [self._category_avg.get(cat, 0) for cat in self.chart_categories]
+
+    @rx.var
+    def bar_chart_data(self) -> go.Figure:
+        """Bar Chart Figure - 호버 툴팁 스타일"""
+        fig = go.Figure()
         
-    # def set_current_category(self, category_name: str):
-    #     """ URL 경로에 따라 현재 카테고리를 설정"""
-    #     if category_name in self.CATEGORY_ORDER:
-    #         self.current_category = category_name
-    #         logger.info(f"State: current_category 설정됨 -> {category_name}")
-    #     else:
-    #         logger.error(f"State:존재하지 않는 카테고리 시도: {category_name}")
-    
-    # def _get_category_path(self, category_name: str) -> str:
-    #     """카테고리 이름을 URL 경로로 조회합니다."""
-    #     # 예: '교통' -> 'transportation' (URL에서 영문 사용 가정)
-    #     return self.CATEGORY_CONFIG.get(category_name, {}).get("path", "")
+        # 사용자 배출량 (초록색)
+        fig.add_trace(go.Bar(
+            name="사용자",
+            x=self.chart_categories,
+            y=self.chart_user_values,
+            marker_color="#2E8B57",
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "사용자 배출량: %{y:.2f} kgCO₂e<br>"
+                "<extra></extra>"
+            ),
+        ))
+        
+        # 한국 평균 (주황색)
+        fig.add_trace(go.Bar(
+            name="평균",
+            x=self.chart_categories,
+            y=self.chart_avg_values,
+            marker_color="#D2691E",
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "평균 배출량: %{y:.2f} kgCO₂e<br>"
+                "<extra></extra>"
+            ),
+        ))
+        
+        fig.update_layout(
+            barmode='group',
+            title=dict(
+                text="카테고리별 탄소 배출 비교",
+                font=dict(size=20, color="#2E8B57"),
+                x=0.5,
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5,
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            xaxis=dict(
+                tickfont=dict(size=14),
+                showgrid=False,
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="lightgray",
+                zeroline=True,
+                zerolinecolor="gray",
+            ),
+            bargap=0.15,
+            bargroupgap=0.1,
+            margin=dict(t=80, b=60),
+            hoverlabel=dict(
+                bgcolor="white",
+                font_size=14,
+                font_family="Arial",
+                bordercolor="gray",
+            ),
+        )
+        
+        return fig
 
-    # --- 5. 핵심 라우팅 및 액션 함수 ---
-    
-    # def back_category(self):
-        # """이전 카테고리 입력 페이지로 돌아갑니다."""
-        # self.error_message = "" # 오류 메시지 초기화
-        
-        # try:
-            # current_index = self.CATEGORY_ORDER.index(self.current_category)
-            
-            # if current_index > 0:
-                # 이전 카테고리로 이동
-                # prev_category_name = self.CATEGORY_ORDER[current_index - 1]
-                # self.current_category = prev_category_name
-                # prev_path = self._get_category_path(prev_category_name)
-                # return rx.redirect(f"/input/{prev_path}")
-            # else:
-                # 첫 카테고리에서는 소개 페이지로 이동
-                # self.current_category = ""
-                # return rx.redirect("/intro")
-                
-        # except ValueError:
-            # 오류 방지
-            # return rx.redirect("/intro")
-        
-    # async def save_and_proceed(self, current_inputs: List[Dict[str, Any]]):
-    #     """
-    #     현재 페이지의 입력을 처리하고, API를 호출하여 계산 후 다음 페이지로 이동합니다.
-    #     """
-    #     logger.info("=" * 50)
-    #     logger.info("💾 save_and_proceed 함수 호출됨!")
-    #     print("=" * 50, flush=True)
-    #     self.is_loading = True
-    #     self.error_message = ""
-
-    #     # 1. 이전 활동 저장소에서 현재 카테고리 활동을 제거
-    #     self.all_activities = [
-    #     act for act in self.all_activities if act.get("category") != self.current_category
-    #     ]
-
-    #     # 2. 유효한 입력만 필터링하고 탄소 배출량 계산 (로직 유지)
-    #     valid_activities = []
-    #     for inp in current_inputs:
-    #         if inp.get("value", 0.0) > 0:
-    #             inp["category"] = self.current_category
-    #             carbon_kg = await self._calculate_emission_for_activity(inp)
-    #             if carbon_kg is not None:
-    #                 inp["carbon_emission_kg"] = carbon_kg
-    #                 valid_activities.append(inp)
-    #             else:
-    #                 self.is_loading = False
-    #                 return 
-
-    #     # 3. 전체 활동 목록에 추가
-    #     self.all_activities.extend(valid_activities)
-
-    #     # 4. 다음 페이지로 이동 (UI에서 직접 처리하므로, 여기서는 이동 경로만 반환)
-    #     self.is_loading = False
- 
-    #     # 💡 다음 페이지 경로를 반환합니다. (호출하는 UI에서 rx.redirect에 사용)
-    #     config = self.CATEGORY_CONFIG.get(self.current_category, {})
-    #     next_path = config.get("next_path", "/report") # 마지막 카테고리가 아니라면 다음 경로, 아니면 /report
-    #     return rx.redirect(next_path) # 👈 직접 리다이렉트 실행
-    
-    # # 임시 더미 함수 (추후 슬롯 추가 함수로 구현 예정)
-    # def add_input_slot(self, activity_type: str):
-    #     pass
-            
-    # # --- 6. API 호출 및 데이터 저장 로직 ---
-    
-    # async def _calculate_emission_for_activity(self, activity: CarbonActivity) -> Optional[float]:
-    #     """서비스 함수를 직접 호출하여 탄소 배출량을 계산합니다."""
-        
-    #     try:
-    #         # 서비스 함수를 직접 호출
-    #         from service.carbon_calculator import calculate_carbon_emission
-            
-    #         result = calculate_carbon_emission(
-    #             category=activity.get("category"),
-    #             activity_type=activity.get("activity_type"),
-    #             value=activity.get("value"),
-    #             unit=activity.get("unit"),
-    #             sub_category=activity.get("sub_category", None)
-    #         )
-            
-    #         return result.get("carbon_emission_kg")
-                
-    #     except Exception as e:
-    #         self.error_message = f"계산 오류: {e}"
-    #         return None
-
-        
-    # # --- 7. 최종 리포트 계산 함수 ---
-
-    # async def calculate_report(self):
-    #     """
-    #     저장된 모든 활동을 바탕으로 최종 리포트 데이터를 계산하고 리포트 페이지로 이동합니다.
-    #     """
-    #     logger.info("=" * 50)
-    #     logger.info("📊 calculate_report 함수 호출됨!")
-    #     logger.info(f"활동 개수: {len(self.all_activities)}")
-    #     print("=" * 50, flush=True)
-    #     print(f"📊 calculate_report 함수 호출됨! 활동: {len(self.all_activities)}개", flush=True)
-    #     print("=" * 50, flush=True)
-    #     self.is_loading = True
-    #     self.error_message = ""
-        
-    #     total = 0.0
-    #     breakdown = {cat: 0.0 for cat in self.CATEGORY_ORDER}
-        
-    #     for activity in self.all_activities:
-    #         emission = activity.get("carbon_emission_kg", 0.0)
-    #         category = activity.get("category")
-            
-    #         total += emission
-    #         if category in breakdown:
-    #             breakdown[category] += emission
-        
-    #     self.total_carbon_emission = total
-    #     self.category_breakdown = breakdown
-    #     self.is_report_calculated = True
-        
-    #     self.is_loading = False
-    #     return rx.redirect("/report")
+    @rx.var
+    def pie_chart_data(self) -> go.Figure:
+        """Pie Chart Figure"""
+        fig = px.pie(
+            names=self.chart_categories,
+            values=self.chart_user_values,
+            title="탄소 배출 비중",
+            hole=0.4
+        )
+        return fig
