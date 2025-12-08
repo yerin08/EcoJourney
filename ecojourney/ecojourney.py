@@ -11,6 +11,8 @@ from .pages.waste import waste_page
 from .pages.water import water_page
 from .pages.report import report_page
 from .pages.mypage import mypage_page
+from .pages.battle import battle_page
+from .pages.ranking import ranking_page
 
 # ----------------------------------------------------
 # 앱 인스턴스 정의 및 라우팅
@@ -43,3 +45,14 @@ app.add_page(report_page, route="/report", title="EcoJourney | 결과 리포트"
 
 # 5. 마이페이지 라우팅
 app.add_page(mypage_page, route="/mypage", title="EcoJourney | 마이페이지", on_load=AppState.load_mypage_data)
+
+# 6. 단과대 대결 페이지 라우팅
+app.add_page(battle_page, route="/battle", title="EcoJourney | 단과대 대결", on_load=AppState.load_current_battle)
+
+# 7. 저번주 랭킹 페이지 라우팅
+app.add_page(
+    ranking_page, 
+    route="/ranking", 
+    title="EcoJourney | 랭킹", 
+    on_load=AppState.load_ranking_data
+)

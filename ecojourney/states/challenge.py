@@ -6,13 +6,13 @@ import reflex as rx
 from typing import List, Dict, Any
 from datetime import datetime
 import logging
-from .mileage import MileageState
+from .battle import BattleState
 from ..models import Challenge, ChallengeProgress, User
 
 logger = logging.getLogger(__name__)
 
 
-class ChallengeState(MileageState):
+class ChallengeState(BattleState):
     """
     챌린지 시스템 관련 상태 및 로직
     """
