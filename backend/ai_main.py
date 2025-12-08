@@ -1,4 +1,4 @@
-# 파일 경로: backend/main.py
+# 파일 경로: backend/ai_main.py
 from fastapi import FastAPI
 from backend import coaching_api
 
