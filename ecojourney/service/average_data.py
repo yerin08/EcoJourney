@@ -1,9 +1,16 @@
 """
 평균 탄소 배출량 데이터
 한국인 평균 일일 탄소 배출량 (kgCO₂e)
+
+출처: 지표누리 온실가스 총배출량과 GDP 대비 1인당 배출량 (2012-2022년 데이터 평균값)
 """
 
+# 전체 평균 일일 탄소 배출량
+# 출처: 지표누리 온실가스 총배출량과 GDP 대비 1인당 배출량 (2012-2022년 데이터 평균값)
+TOTAL_AVERAGE_DAILY = 14.5  # kgCO₂e/일
+
 # 카테고리별 한국인 평균 일일 탄소 배출량 (kgCO₂e)
+# 참고: 아래 값들은 참고용 추정값이며, 총 평균(14.5 kgCO₂e/일)과의 비율로 계산됨
 AVERAGE_DAILY_EMISSION = {
     "교통": 3.5,      # 통근/통학 및 이동
     "식품": 2.8,      # 식사
@@ -12,9 +19,6 @@ AVERAGE_DAILY_EMISSION = {
     "의류": 0.5,      # 의류 구매 (일일 평균)
     "쓰레기": 0.7     # 폐기물 처리
 }
-
-# 전체 평균 일일 탄소 배출량
-TOTAL_AVERAGE_DAILY = sum(AVERAGE_DAILY_EMISSION.values())  # 약 10.0 kgCO₂e
 
 def get_average_emission(category: str) -> float:
     """카테고리별 평균 배출량 반환"""

@@ -1,4 +1,4 @@
-# water.py
+# water.py - 물 입력 페이지 (기능 테스트용)
 
 import reflex as rx
 from ..state import AppState

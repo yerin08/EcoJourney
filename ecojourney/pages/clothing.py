@@ -1,7 +1,5 @@
 # clothing.py
 
-# food.py
-
 import reflex as rx
 from ..state import AppState
 
