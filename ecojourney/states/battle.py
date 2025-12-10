@@ -132,8 +132,7 @@ class BattleState(CarbonState):
             battle.winner = winner
             battle.status = "FINISHED"
             session.add(battle)
-            session.commit()
-            session.refresh(battle)
+            # 상태 업데이트는 보상 분배와 함께 원자적으로 커밋되어야 함
             
             # 참가자 조회
             participants = session.exec(
@@ -186,10 +185,13 @@ class BattleState(CarbonState):
                         user.current_points += participant.bet_amount
                         session.add(user)
             
+            # 모든 작업(상태 업데이트 + 보상 분배)이 성공적으로 완료된 후에만 커밋
             session.commit()
             logger.info(f"대결 종료 처리 완료: Battle {battle_id}, 승자: {winner}")
             
         except Exception as e:
+            # 예외 발생 시 롤백하여 배틀 상태와 보상 분배가 모두 취소되도록 함
+            session.rollback()
             logger.error(f"대결 종료 처리 오류: {e}", exc_info=True)
     
     def _get_user_college(self, student_id: str, session) -> Optional[str]:
