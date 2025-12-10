@@ -91,7 +91,7 @@ def ranking_page() -> rx.Component:
                 rx.vstack(
                     rx.foreach(
                         AppState.previous_battles,
-                        lambda battle, i: rx.card(
+                        lambda battle: rx.card(
                             rx.vstack(
                                 rx.hstack(
                                     rx.vstack(
