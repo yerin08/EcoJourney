@@ -446,7 +446,7 @@ def report_page() -> rx.Component:
             
             # 총 평균 비교만 표시
             rx.cond(
-                AppState.is_report_calculated & (AppState.total_average_comparison != {}),
+                AppState.is_report_calculated & ('user' in AppState.total_average_comparison),
                 rx.vstack(
                     rx.heading("📊 총 배출량 평균 비교", size="6", margin_bottom="20px"),
                     
