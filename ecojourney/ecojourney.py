@@ -2,6 +2,7 @@ import reflex as rx
 from .states import AppState
 from .pages.home import home_page
 from .pages.intro import intro_page
+from .pages.info import info_page
 from .pages.auth import auth_page
 from .pages.transportation import transportation_page
 from .pages.food import food_page
@@ -11,6 +12,8 @@ from .pages.waste import waste_page
 from .pages.water import water_page
 from .pages.report import report_page
 from .pages.mypage import mypage_page
+from .pages.battle import battle_page
+from .pages.ranking import ranking_page
 
 # ----------------------------------------------------
 # 앱 인스턴스 정의 및 라우팅
@@ -25,6 +28,8 @@ app.add_page(home_page, route="/", title="EcoJourney | 시작")
 
 # 2. 서비스 소개 화면 라우팅
 app.add_page(intro_page, route="/intro", title="EcoJourney | 소개")
+# 2-1. 정보글 페이지
+app.add_page(info_page, route="/info", title="EcoJourney | 정보글", on_load=AppState.load_active_challenges)
 
 # 2-1. 로그인/회원가입 화면 라우팅
 app.add_page(auth_page, route="/auth", title="EcoJourney | 로그인")
@@ -43,3 +48,14 @@ app.add_page(report_page, route="/report", title="EcoJourney | 결과 리포트"
 
 # 5. 마이페이지 라우팅
 app.add_page(mypage_page, route="/mypage", title="EcoJourney | 마이페이지", on_load=AppState.load_mypage_data)
+
+# 6. 단과대 대결 페이지 라우팅
+app.add_page(battle_page, route="/battle", title="EcoJourney | 단과대 대결", on_load=AppState.load_current_battle)
+
+# 7. 저번주 랭킹 페이지 라우팅
+app.add_page(
+    ranking_page, 
+    route="/ranking", 
+    title="EcoJourney | 랭킹", 
+    on_load=AppState.load_ranking_data
+)
