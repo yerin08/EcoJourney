@@ -88,16 +88,19 @@ class AuthState(BaseState):
             self.current_user_points = user_info.current_points
             self.is_logged_in = True
             
-            # 클라이언트 로컬 스토리지에 로그인 정보 저장 (지원되는 경우)
+            # 로컬 스토리지 저장 시도 (EventSpec는 await 불가하므로 호출만 수행)
             if hasattr(rx, "set_local_storage"):
-                await rx.set_local_storage(
-                    "auth_user",
-                    {
-                        "student_id": self.current_user_id,
-                        "college": self.current_user_college,
-                        "current_points": self.current_user_points,
-                    },
-                )
+                try:
+                    rx.set_local_storage(
+                        "auth_user",
+                        {
+                            "student_id": self.current_user_id,
+                            "college": self.current_user_college,
+                            "current_points": self.current_user_points,
+                        },
+                    )
+                except Exception as e:
+                    logger.debug(f"로컬 스토리지 저장 실패(무시): {e}")
             
             # 폼 초기화
             self.signup_student_id = ""
@@ -142,16 +145,19 @@ class AuthState(BaseState):
             self.current_user_points = user.current_points
             self.is_logged_in = True
             
-            # 클라이언트 로컬 스토리지에 로그인 정보 저장 (지원되는 경우)
+            # 로컬 스토리지 저장 시도 (EventSpec는 await 불가하므로 호출만 수행)
             if hasattr(rx, "set_local_storage"):
-                await rx.set_local_storage(
-                    "auth_user",
-                    {
-                        "student_id": self.current_user_id,
-                        "college": self.current_user_college,
-                        "current_points": self.current_user_points,
-                    },
-                )
+                try:
+                    rx.set_local_storage(
+                        "auth_user",
+                        {
+                            "student_id": self.current_user_id,
+                            "college": self.current_user_college,
+                            "current_points": self.current_user_points,
+                        },
+                    )
+                except Exception as e:
+                    logger.debug(f"로컬 스토리지 저장 실패(무시): {e}")
             
             # 폼 초기화
             self.login_student_id = ""
@@ -175,7 +181,10 @@ class AuthState(BaseState):
     async def logout(self):
         """로그아웃 처리"""
         if hasattr(rx, "remove_local_storage"):
-            await rx.remove_local_storage("auth_user")
+            try:
+                rx.remove_local_storage("auth_user")
+            except Exception as e:
+                logger.debug(f"로컬 스토리지 제거 실패(무시): {e}")
         self.current_user_id = None
         self.current_user_college = None
         self.current_user_points = 0
@@ -186,21 +195,8 @@ class AuthState(BaseState):
     async def hydrate_auth(self):
         """클라이언트 로컬 스토리지에서 로그인 정보 복원"""
         try:
-            if not hasattr(rx, "get_local_storage"):
-                return
-            data = await rx.get_local_storage("auth_user")
-            if not data:
-                return
-            if isinstance(data, str):
-                try:
-                    data = json.loads(data)
-                except Exception:
-                    data = None
-            if isinstance(data, dict):
-                self.current_user_id = data.get("student_id")
-                self.current_user_college = data.get("college")
-                self.current_user_points = data.get("current_points") or 0
-                self.is_logged_in = bool(self.current_user_id)
+            # 현재 Reflex 0.8.x에서는 get_local_storage EventSpec await 불가 → 복원 생략
+            return
         except Exception as e:
             logger.warning(f"로그인 정보 복원 실패: {e}")
 

@@ -620,6 +620,65 @@ def report_page() -> rx.Component:
                                     max_width="800px",
                                 ),
                                 
+                                # 정책/혜택 추천
+                                rx.cond(
+                                    AppState.ai_alternatives.length() > 0,
+                                    rx.box(
+                                        rx.vstack(
+                                            rx.heading("🏛️ 정책/혜택 추천", size="5", margin_bottom="10px"),
+                                            rx.foreach(
+                                                AppState.ai_alternatives,
+                                                lambda alt: rx.vstack(
+                                                    rx.hstack(
+                                                        rx.text("정책: ", font_weight="bold", size="3"),
+                                                        rx.text(
+                                                            alt.get("current", "") if isinstance(alt, dict) else "",
+                                                            size="3",
+                                                            color="blue.700",
+                                                        ),
+                                                        spacing="2",
+                                                    ),
+                                                    rx.cond(
+                                                        alt.get("alternative", None) if isinstance(alt, dict) else None,
+                                                        rx.text(
+                                                            alt.get("alternative", ""),
+                                                            size="3",
+                                                            color="gray.700",
+                                                            line_height="1.6",
+                                                        ),
+                                                    ),
+                                                    rx.cond(
+                                                        alt.get("impact", None) if isinstance(alt, dict) else None,
+                                                        rx.link(
+                                                            "자세히 보기",
+                                                            href=alt.get("impact", ""),
+                                                            is_external=True,
+                                                            color="blue.600",
+                                                            underline="always",
+                                                        ),
+                                                    ),
+                                                    spacing="2",
+                                                    padding="12px",
+                                                    border="1px solid",
+                                                    border_color="gray.200",
+                                                    border_radius="10px",
+                                                    background="gray.50",
+                                                    width="100%",
+                                                ),
+                                            ),
+                                            spacing="3",
+                                        ),
+                                        padding="20px",
+                                        border="1px solid",
+                                        border_color="blue.200",
+                                        border_radius="12px",
+                                        background="blue.50",
+                                        margin_bottom="20px",
+                                        width="100%",
+                                        max_width="800px",
+                                    ),
+                                ),
+
                                 spacing="3",
                                 align="center",
                                 width="100%",

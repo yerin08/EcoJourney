@@ -3,9 +3,10 @@
 """
 
 import reflex as rx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, date, timedelta
 import logging
+import random
 from .mileage import MileageState
 from ..models import Challenge, ChallengeProgress, User
 
@@ -19,6 +20,11 @@ class ChallengeState(MileageState):
     active_challenges: List[Dict[str, Any]] = []
     user_challenge_progress: List[Dict[str, Any]] = []
     challenge_message: str = ""
+    daily_info_title: str = ""
+    daily_info_body: str = ""
+    daily_quiz_question: str = ""
+    daily_quiz_answer: str = ""
+    daily_content_date: Optional[date] = None
     
     # 탄소 통계 개별 변수 (Reflex에서 Dict 접근 제한 때문에 분리)
     carbon_total_logs: int = 0
@@ -118,7 +124,84 @@ class ChallengeState(MileageState):
             ]
         except Exception as e:
             logger.error(f"챌린지 로드 오류: {e}", exc_info=True)
-            self.active_challenges = []
+
+    async def load_daily_content(self):
+        """매일 하나의 정보글과 OX 퀴즈를 날짜 기반 랜덤으로 선택"""
+        today = date.today()
+        if self.daily_content_date == today and self.daily_info_title and self.daily_quiz_question:
+            return
+
+        info_items = [
+            {
+                "title": "해양 플라스틱 오염",
+                "body": "전 세계 바다에는 이미 1억 5천만 톤의 플라스틱이 떠다니고 있고, 매년 800만 톤 이상이 새로 유입됩니다.",
+            },
+            {
+                "title": "미세플라스틱의 역습",
+                "body": "우리는 일주일마다 신용카드 한 장 무게만큼 미세플라스틱을 섭취하고 있습니다.",
+            },
+            {
+                "title": "음식물 쓰레기와 메탄",
+                "body": "음식물 쓰레기는 매립되면 CO₂보다 28배 강한 메탄가스를 배출합니다.",
+            },
+            {
+                "title": "패스트패션의 그림자",
+                "body": "패스트패션은 전 세계 탄소 배출의 10% 이상을 차지하며, 옷 한 벌에 수천 리터의 물이 쓰입니다.",
+            },
+            {
+                "title": "자동차 배출량",
+                "body": "자동차는 1km 이동할 때 약 120~200g CO₂를 배출합니다.",
+            },
+            {
+                "title": "지구 온난화 현실",
+                "body": "산업혁명 이후 지구 평균기온은 약 1.1℃ 상승했고, 이 변화가 폭염·폭우·산불을 더 자주 만듭니다.",
+            },
+            {
+                "title": "전기의 탄소 발자국",
+                "body": "우리가 쓰는 전기의 상당수는 여전히 화석연료 발전소에서 생산됩니다.",
+            },
+            {
+                "title": "뜨거운 물 사용의 비용",
+                "body": "뜨거운 물 1분 사용은 약 1.3kg CO₂ 배출과 비슷한 에너지를 소비합니다.",
+            },
+            {
+                "title": "쓰레기 매립지의 한계",
+                "body": "전 세계 주요 도시의 매립지는 포화 상태이며, 쓰레기는 더 이상 ‘버리면 끝’이 아닙니다.",
+            },
+            {
+                "title": "소고기의 탄소 발자국",
+                "body": "소고기 1kg 생산은 약 27kg CO₂를 배출해 자동차로 113km 주행한 것과 비슷합니다.",
+            },
+        ]
+
+        quiz_items = [
+            {"q": "물은 받을 때보다 틀어놓을 때가 더 많이 낭비된다.", "a": "O"},
+            {"q": "사용하지 않는 전등을 끄는 것만으로도 탄소를 줄일 수 있다.", "a": "O"},
+            {"q": "플라스틱을 재활용하면 새로 만드는 것보다 에너지가 더 든다.", "a": "X"},
+            {"q": "가까운 거리를 걸어가면 탄소 배출을 줄일 수 있다.", "a": "O"},
+            {"q": "음식물을 남겨도 환경에 큰 영향은 없다.", "a": "X"},
+            {"q": "엘리베이터 대신 계단을 이용하면 탄소 배출을 줄일 수 있다.", "a": "O"},
+            {"q": "샤워 시간을 조금만 줄여도 탄소가 줄어든다.", "a": "O"},
+            {"q": "텀블러를 쓰는 것보다 일회용 컵을 쓰는 것이 환경에 더 좋다.", "a": "X"},
+            {"q": "재활용은 분리만 잘하면 누구나 쉽게 실천할 수 있다.", "a": "O"},
+            {"q": "방을 환기할 때는 잠깐 열어두는 것이 에너지 낭비를 줄인다.", "a": "O"},
+            {"q": "에어컨 온도를 1℃만 올려도 전기 사용량이 줄어든다.", "a": "O"},
+            {"q": "자동차 혼자 타는 것보다 함께 타는 것이 탄소 배출을 줄인다.", "a": "O"},
+            {"q": "배달 음식을 시키는 것은 환경에 전혀 영향이 없다.", "a": "X"},
+            {"q": "분리배출할 때 라벨이나 내용물을 제거하는 것이 재활용률을 높인다.", "a": "O"},
+            {"q": "물을 데우는 것보다 찬물 사용이 탄소 배출을 줄인다.", "a": "O"},
+        ]
+
+        seed_val = today.toordinal()
+        rng = random.Random(seed_val)
+        info = rng.choice(info_items)
+        quiz = rng.choice(quiz_items)
+
+        self.daily_info_title = info["title"]
+        self.daily_info_body = info["body"]
+        self.daily_quiz_question = quiz["q"]
+        self.daily_quiz_answer = quiz["a"]
+        self.daily_content_date = today
     
     async def update_challenge_progress(self, challenge_id: int, increment: int = 1):
         """챌린지 진행도 업데이트 (일일/주간 리셋 포함)"""

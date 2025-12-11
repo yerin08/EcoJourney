@@ -94,7 +94,14 @@ def quiz_card():
     return rx.card(
         rx.vstack(
             rx.heading("OX 퀴즈", size="5", color="white"),
-            rx.text("지구 온난화를 막기 위해서는 일회용품 사용을 줄여야 한다. (O/X)", color="gray.300"),
+            rx.text(
+                rx.cond(
+                    AppState.daily_quiz_question != "",
+                    AppState.daily_quiz_question,
+                    "지구 온난화를 막기 위해서는 일회용품 사용을 줄여야 한다. (O/X)",
+                ),
+                color="gray.300",
+            ),
             rx.hstack(
                 rx.button("O", color_scheme="green", on_click=AppState.complete_daily_quiz_o),
                 rx.button("X", color_scheme="red", on_click=AppState.complete_daily_quiz_x),
@@ -120,20 +127,14 @@ def info_page() -> rx.Component:
                 size="3",
                 margin_bottom="15px",
             ),
-            rx.grid(
-                info_card(
-                    "탄소 중립이란?",
+            info_card(
+                rx.cond(AppState.daily_info_title != "", AppState.daily_info_title, "탄소 중립이란?"),
+                rx.cond(
+                    AppState.daily_info_body != "",
+                    AppState.daily_info_body,
                     "인류 활동으로 발생한 온실가스 배출량을 줄이고, 남은 부분은 흡수·제거하여 순 배출량을 0으로 만드는 것.",
-                    AppState.complete_daily_info,
                 ),
-                info_card(
-                    "재생에너지의 필요성",
-                    "태양광·풍력 같은 재생에너지는 화석연료 의존을 낮추고 온실가스 배출을 크게 줄입니다.",
-                    AppState.complete_daily_info,
-                ),
-                columns={"base": "1", "md": "2"},
-                spacing="4",
-                width="100%",
+                AppState.complete_daily_info,
             ),
             quiz_card(),
             rx.cond(

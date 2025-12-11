@@ -78,6 +78,32 @@ def battle_page() -> rx.Component:
                         border="1px solid rgba(255, 255, 255, 0.2)",
                     ),
                     
+                    rx.cond(
+                        AppState.current_battle_participants.length() > 0,
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("참가자 목록", size="5", margin_bottom="10px"),
+                                rx.foreach(
+                                    AppState.current_battle_participants,
+                                    lambda p: rx.hstack(
+                                        rx.text(p.get("student_id", ""), width="140px", font_weight="bold"),
+                                        rx.text(f"{p.get('bet_amount', 0)}점", width="80px"),
+                                        rx.text(p.get("joined_at", ""), color="gray.600"),
+                                        spacing="3",
+                                        align="center",
+                                        width="100%",
+                                    ),
+                                ),
+                                spacing="3",
+                            ),
+                            padding="16px",
+                            border="1px solid rgba(255, 255, 255, 0.2)",
+                            background="rgba(255, 255, 255, 0.05)",
+                            width="100%",
+                            max_width="700px",
+                        ),
+                    ),
+                    
                     # 참가 폼
                     rx.card(
                         rx.vstack(

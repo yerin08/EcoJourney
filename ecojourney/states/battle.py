@@ -36,6 +36,8 @@ class BattleState(CarbonState):
     대항전 시스템 관련 상태 및 로직
     """
     current_battle: Optional[Dict[str, Any]] = None
+    current_battle_participants: List[Dict[str, Any]] = []
+    current_battle_participants: List[Dict[str, Any]] = []
     battle_bet_amount: int = 0
     battle_error_message: str = ""
     previous_battles: List[Dict[str, Any]] = []  # 저번주 대결 결과
@@ -290,15 +292,15 @@ class BattleState(CarbonState):
                             )
                         ).all()
                         
-                        # 각 팀의 참가자 수와 총 베팅 포인트 계산
-                        team_a_participants = []
-                        team_b_participants = []
+                        # 각 팀의 고유 참가자 수 계산 (중복 student_id 제거)
+                        team_a_participants: Dict[str, BattleParticipant] = {}
+                        team_b_participants: Dict[str, BattleParticipant] = {}
                         for p in participants_a:
                             user_college = self._get_user_college(p.student_id, session)
                             if user_college == battle.college_a:
-                                team_a_participants.append(p)
+                                team_a_participants[p.student_id] = p
                             elif user_college == battle.college_b:
-                                team_b_participants.append(p)
+                                team_b_participants[p.student_id] = p
                         
                         self.current_battle = {
                             "id": battle.id,
@@ -311,9 +313,23 @@ class BattleState(CarbonState):
                             "start_date": battle.start_date.strftime("%Y-%m-%d") if battle.start_date else "",
                             "end_date": battle.end_date.strftime("%Y-%m-%d") if battle.end_date else ""
                         }
+                        # 참가자 전체 목록 저장 (학번별 총 베팅 합산)
+                        participant_list = []
+                        bet_sum_map: Dict[str, int] = {}
+                        for p in participants_a:
+                            bet_sum_map[p.student_id] = bet_sum_map.get(p.student_id, 0) + p.bet_amount
+                        for sid, total_bet in bet_sum_map.items():
+                            participant_list.append(
+                                {
+                                    "student_id": sid,
+                                    "bet_amount": total_bet,
+                                }
+                            )
+                        self.current_battle_participants = participant_list
                         return
                 
                 self.current_battle = None
+                self.current_battle_participants = []
                 
         except Exception as e:
             logger.error(f"대항전 로드 오류: {e}", exc_info=True)

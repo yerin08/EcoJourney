@@ -25,6 +25,9 @@ class CarbonState(AuthState):
     saved_logs_history: List[Dict[str, Any]] = []
     has_today_log: bool = False  # 오늘 날짜에 저장된 로그가 있는지
     
+    # 정책/혜택 후보 (LLM은 이 목록 안에서만 선택)
+    policy_candidates: List[Dict[str, str]] = []
+    
     # ---------- 교통수단 선택 상태 ----------
     selected_car: bool = False
     selected_bus: bool = False
@@ -1402,6 +1405,25 @@ class CarbonState(AuthState):
         self.ai_alternatives = []
         
         try:
+            # 정책 후보 기본 세트 주입 (빈 경우에만)
+            if not self.policy_candidates:
+                self.policy_candidates = [
+                    {
+                        "name": "광역알뜰교통카드",
+                        "reason": "교통비를 절감하면서 대중교통 이용을 늘릴 때 적합합니다.",
+                        "url": "https://www.alcard.kr",
+                    },
+                    {
+                        "name": "탄소중립포인트",
+                        "reason": "전기·가스·수도 절약 시 포인트 적립을 받을 수 있습니다.",
+                        "url": "https://cpoint.or.kr",
+                    },
+                    {
+                        "name": "다회용컵 보증금 제도",
+                        "reason": "카페 일회용컵 사용을 줄이면 보증금을 환급받을 수 있습니다.",
+                        "url": "https://www.zeroshop.kr",
+                    },
+                ]
             from ..ai.llm_service import get_coaching_feedback
             import json
             
@@ -1426,6 +1448,7 @@ class CarbonState(AuthState):
                 "category_carbon_data": self.category_emission_breakdown or {},
                 "total_carbon_kg": total_carbon,
                 "category_activity_data": self.category_emission_breakdown or {},
+                "policy_candidates": getattr(self, "policy_candidates", []),
             }
             
             feedback_json = get_coaching_feedback(payload)
@@ -1460,12 +1483,13 @@ class CarbonState(AuthState):
             for p in policy_recos:
                 if isinstance(p, dict):
                     name = p.get("name") or p.get("title") or ""
-                    desc = p.get("description") or p.get("detail") or ""
-                    if name or desc:
+                    desc = p.get("description") or p.get("detail") or p.get("reason") or ""
+                    url = p.get("url") or ""
+                    if name or desc or url:
                         alternatives.append({
                             "current": name,
-                            "alternative": "",
-                            "impact": desc,
+                            "alternative": desc,
+                            "impact": url,
                         })
             self.ai_alternatives = alternatives
             
