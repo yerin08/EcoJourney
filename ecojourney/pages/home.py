@@ -145,7 +145,7 @@ def home_page() -> rx.Component:
     """홈 페이지 컴포넌트"""
     return rx.box(
         header(),
-        
+
         # fade-in 애니메이션을 위한 CSS 삽입
         rx.html("""
         <style>
@@ -160,6 +160,24 @@ def home_page() -> rx.Component:
             }
         }
         </style>
+        """),
+
+        # 세션 복원 스크립트 (페이지 로드 시 localStorage 확인 후 백엔드 호출)
+        rx.script("""
+            (function() {
+                // localStorage에서 세션 정보 확인
+                const userId = localStorage.getItem('eco_user_id');
+                const isLoggedIn = localStorage.getItem('eco_is_logged_in');
+
+                // 로그인 상태이고 세션 정보가 있으면 복원 시도
+                if (isLoggedIn === 'true' && userId && userId !== 'null' && userId !== 'None') {
+                    // Reflex 이벤트 발생시키기 위해 커스텀 이벤트 사용
+                    setTimeout(function() {
+                        // window에 user_id 저장 (이후 on_mount에서 접근 가능)
+                        window.ecoSessionUserId = userId;
+                    }, 50);
+                }
+            })();
         """),
 
          # 배경 레이어 구성

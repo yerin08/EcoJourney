@@ -782,7 +782,4 @@ def report_page() -> rx.Component:
         min_height="100vh",
         on_mount=AppState.on_report_page_load,  # 페이지 로드 시 자동 실행
         ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
-        ),
     )

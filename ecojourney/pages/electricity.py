@@ -400,7 +400,4 @@ def electricity_page():
         min_height="100vh",
         background="#F8F9FA",
         ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
-        ),
     )

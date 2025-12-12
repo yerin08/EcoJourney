@@ -229,102 +229,132 @@ def battle_page() -> rx.Component:
                 z_index="0",
             ),
 
-            # 실제 콘텐츠
+            # ----------------------------------------------------
+            # ② 실제 콘텐츠
+            # ----------------------------------------------------
             rx.box(
                 rx.vstack(
-            
-                    # 현재 대결 정보
+
+                    # -------------------------------------------------------
+                    # ⭐ 현재 대결 정보 섹션
+                    # -------------------------------------------------------
                     rx.cond(
                         AppState.current_battle != None,
-                        rx.vstack(
-                            rx.card(
-                                rx.vstack(
-                                    rx.heading("현재 대결", size="6", margin_bottom="15px", color="#333333"),
-                            rx.hstack(
-                                rx.vstack(
-                                    rx.text(
-                                        AppState.current_battle["college_a"],
-                                        size="5",
-                                        weight="bold",
-                                        color="blue.600",
+                        rx.card(
+                            rx.vstack(
+                                rx.heading("현재 대결", size="7", color="#333333", margin_bottom="20px"),
+
+                                # A팀 vs B팀
+                                rx.hstack(
+                                    # 왼쪽 단과대
+                                    rx.vstack(
+                                        rx.text(
+                                            AppState.current_battle["college_a"],
+                                            size="6",
+                                            font_weight="bold",
+                                            color="blue.600",
+                                        ),
+                                        rx.text(
+                                            f"총 포인트: {AppState.current_battle['score_a']}",
+                                            size="4",
+                                            color="#333333",
+                                        ),
+                                        rx.text(
+                                            f"참가 인원: {AppState.current_battle['participants_a']}명",
+                                            size="3",
+                                            color="gray.600",
+                                        ),
+                                        align="center",
+                                        spacing="2",
                                     ),
-                                    rx.text(
-                                        f"총 포인트: {AppState.current_battle['score_a']}",
-                                        size="4",
-                                        color="#333333",
+
+                                    rx.text("VS", size="7", font_weight="bold", color="#4DAB75", margin_x="30px"),
+
+                                    # 오른쪽 단과대
+                                    rx.vstack(
+                                        rx.text(
+                                            AppState.current_battle["college_b"],
+                                            size="6",
+                                            font_weight="bold",
+                                            color="red.600",
+                                        ),
+                                        rx.text(
+                                            f"총 포인트: {AppState.current_battle['score_b']}",
+                                            size="4",
+                                            color="#333333",
+                                        ),
+                                        rx.text(
+                                            f"참가 인원: {AppState.current_battle['participants_b']}명",
+                                            size="3",
+                                            color="gray.600",
+                                        ),
+                                        align="center",
+                                        spacing="2",
                                     ),
-                                    rx.text(
-                                        f"참가 인원: {AppState.current_battle['participants_a']}명",
-                                        size="3",
-                                        color="gray.600",
-                                    ),
+
+                                    justify="center",
                                     align="center",
-                                    spacing="2",
+                                    width="100%",
                                 ),
-                                rx.text("VS", size="6", weight="bold", color="#4DAB75", margin_x="30px"),
-                                rx.vstack(
-                                    rx.text(
-                                        AppState.current_battle["college_b"],
-                                        size="5",
-                                        weight="bold",
-                                        color="red.600",
-                                    ),
-                                    rx.text(
-                                        f"총 포인트: {AppState.current_battle['score_b']}",
-                                        size="4",
-                                        color="#333333",
-                                    ),
-                                    rx.text(
-                                        f"참가 인원: {AppState.current_battle['participants_b']}명",
-                                        size="3",
-                                        color="gray.600",
-                                    ),
-                                    align="center",
-                                    spacing="2",
+
+                                rx.divider(margin_y="15px"),
+
+                                # 기간 표시
+                                rx.text(
+                                    f"기간: {AppState.current_battle['start_date']} ~ {AppState.current_battle['end_date']}",
+                                    size="3",
+                                    color="gray.600",
+                                ),
+                            ),
+                            width="100%",
+                            background="white",
+                            border="1px solid rgba(0,0,0,0.1)",
+                            box_shadow="0 4px 12px rgba(0,0,0,0.1)",
+                            padding="30px",
+                            margin_bottom="30px",
+                        ),
+
+                        # 대결이 없을 때
+                        rx.card(
+                            rx.vstack(
+                                rx.text("현재 진행 중인 대결이 없습니다.", size="4", color="gray.700"),
+                                rx.text(
+                                    "매주 월요일 새로운 대결이 생성됩니다.",
+                                    size="3",
+                                    color="gray.600",
+                                    margin_top="10px",
                                 ),
                                 align="center",
-                                justify="center",
-                                width="100%",
-                                margin_y="20px",
+                                padding="40px",
                             ),
-                                    rx.divider(margin_y="15px"),
-                                    rx.text(
-                                        f"기간: {AppState.current_battle['start_date']} ~ {AppState.current_battle['end_date']}",
-                                        size="3",
-                                        color="gray.600",
-                                    ),
-                                    spacing="4",
-                                    padding="20px",
-                                ),
-                                width="100%",
-                                background="white",
-                                border="1px solid rgba(0, 0, 0, 0.1)",
-                                box_shadow="0 4px 12px rgba(0,0,0,0.1)",
+                            width="100%",
+                            background="white",
+                            border="1px solid rgba(0,0,0,0.1)",
+                            box_shadow="0 4px 12px rgba(0,0,0,0.1)",
+                            margin_bottom="30px",
+                        )
+                    ),
+                    # -------------------------------------------------------
+                    # ⭐ 대결 참가 (베팅 UI)
+                    # -------------------------------------------------------
+                    rx.card(
+                        rx.vstack(
+                            rx.heading("대결 참가", size="6", color="#333333", margin_bottom="15px"),
+
+                            rx.text(
+                                "팀의 승리에 기여할 포인트를 베팅하세요!",
+                                size="3",
+                                color="gray.700",
                             ),
-                    
-                            # 참가 폼
-                            rx.card(
-                                rx.vstack(
-                                    rx.heading("대결 참가", size="5", margin_bottom="15px", color="#333333"),
-                                    rx.text(
-                                        "참가비(베팅 포인트)를 내고 참여하세요!",
-                                        size="3",
-                                        color="gray.700",
-                                        margin_bottom="5px",
-                                    ),
-                                    rx.text(
-                                        "참여한 인원들의 총 포인트로 승부가 결정됩니다.",
-                                        size="2",
-                                        color="gray.600",
-                                        margin_bottom="5px",
-                                    ),
-                                    rx.text(
-                                        "이긴 팀은 진 팀의 참가비를 모두 가져갑니다!",
-                                        size="2",
-                                        color="#4DAB75",
-                                        font_weight="bold",
-                                        margin_bottom="15px",
-                                    ),
+                            rx.text(
+                                "승리한 팀은 상대팀의 베팅 포인트를 나눠 가집니다.",
+                                size="2",
+                                color="#4DAB75",
+                                margin_bottom="20px",
+                                font_weight="bold",
+                            ),
+
+                            # ⚙️ 베팅 입력 + 버튼
                             rx.hstack(
                                 rx.input(
                                     type="number",
@@ -340,91 +370,72 @@ def battle_page() -> rx.Component:
                                     color_scheme="green",
                                     size="3",
                                 ),
-                                align="center",
                                 spacing="4",
-                            ),
-                                    rx.cond(
-                                        AppState.battle_error_message != "",
-                                        rx.text(
-                                            AppState.battle_error_message,
-                                            color="red.600",
-                                            size="2",
-                                            margin_top="10px",
-                                        ),
-                                    ),
-                                    spacing="4",
-                                    padding="20px",
-                                ),
-                                width="100%",
-                                background="white",
-                                border="1px solid rgba(0, 0, 0, 0.1)",
-                                box_shadow="0 4px 12px rgba(0,0,0,0.1)",
-                                margin_top="20px",
-                            ),
-                            spacing="4",
-                            width="100%",
-                        ),
-                        rx.card(
-                            rx.vstack(
-                                rx.text(
-                                    "현재 진행 중인 대결이 없습니다.",
-                                    size="4",
-                                    color="gray.700",
-                                ),
-                                rx.text(
-                                    "매주 월요일 새로운 대결이 시작됩니다!",
-                                    size="3",
-                                    color="gray.600",
-                                    margin_top="10px",
-                                ),
                                 align="center",
-                                padding="40px",
                             ),
-                            width="100%",
-                            background="white",
-                            border="1px solid rgba(0, 0, 0, 0.1)",
-                            box_shadow="0 4px 12px rgba(0,0,0,0.1)",
-                        ),
-                    ),
 
-                    # 내 포인트 정보
-                    rx.card(
-                        rx.hstack(
-                            rx.text("내 포인트: ", size="4", color="#333333"),
-                            rx.text(
-                                AppState.current_user_points,
-                                size="5",
-                                weight="bold",
-                                color="#4DAB75",
+                            # ⚠️ 에러 메시지
+                            rx.cond(
+                                AppState.battle_error_message != "",
+                                rx.text(
+                                    AppState.battle_error_message,
+                                    color="red.600",
+                                    size="2",
+                                    margin_top="10px",
+                                    font_weight="bold",
+                                ),
                             ),
-                            align="center",
-                            spacing="2",
+
+                            spacing="4",
+                            padding="20px",
                         ),
                         width="100%",
                         background="white",
-                        border="1px solid rgba(0, 0, 0, 0.1)",
+                        border="1px solid rgba(0,0,0,0.1)",
                         box_shadow="0 4px 12px rgba(0,0,0,0.1)",
-                        margin_top="20px",
-                        padding="15px",
+                        margin_bottom="30px",
                     ),
 
+                    # -------------------------------------------------------
+                    # ⭐ 내 포인트 정보 카드
+                    # -------------------------------------------------------
+                    rx.card(
+                        rx.hstack(
+                            rx.text("내 포인트", size="4", color="#333333"),
+                            rx.text(
+                                f"{AppState.current_user_points:,}",
+                                size="6",
+                                font_weight="bold",
+                                color="#4DAB75",
+                                margin_left="10px",
+                            ),
+                            spacing="2",
+                            align="center",
+                        ),
+                        width="100%",
+                        background="white",
+                        border="1px solid rgba(0,0,0,0.1)",
+                        box_shadow="0 4px 12px rgba(0,0,0,0.1)",
+                        padding="20px",
+                        margin_bottom="30px",
+                    ),
                     spacing="6",
-                    align="center",
-                    padding="40px 20px",
                     width="100%",
                     max_width="1200px",
+                    align="center",
                 ),
 
                 width="100%",
                 z_index="2",
+                padding="40px 20px",
                 display="flex",
                 justify_content="center",
-                margin_top="70vh",
+
+                # ⭐ 콘텐츠를 상단 66vh 바로 아래로 내리는 핵심 코드
+                margin_top="66vh",
             ),
+
         ),
-        ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
         ),
     )
 

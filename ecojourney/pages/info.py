@@ -592,7 +592,4 @@ def info_page() -> rx.Component:
             # 페이지 로드 시 퀴즈 상태 로드
             on_mount=AppState.load_quiz_state,
         ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
-        ),
     )

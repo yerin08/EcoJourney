@@ -315,7 +315,7 @@ def ranking_page() -> rx.Component:
                 rx.vstack(
                     rx.foreach(
                         AppState.previous_battles,
-                        lambda battle, i: rx.card(
+                        lambda battle: rx.card(
                             rx.vstack(
                                 rx.hstack(
                                     rx.vstack(
@@ -423,9 +423,6 @@ def ranking_page() -> rx.Component:
                 margin_top="70vh",
             ),
         ),
-        ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
         ),
     )
 

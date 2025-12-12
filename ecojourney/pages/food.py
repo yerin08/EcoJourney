@@ -155,8 +155,8 @@ def food_button(label: str, is_selected, on_click):
         spacing="2",
     )
 
-    selected_bg = rx.cond(disabled, "rgba(77, 171, 117, 0.5)", "#4DAB75")
-    default_bg  = rx.cond(disabled, "rgba(255, 255, 255, 0.1)", "rgba(255, 255, 255, 0.15)")
+    selected_bg = rx.cond(disabled, "rgba(77, 171, 117, 0.4)", "#4DAB75")
+    default_bg  = rx.cond(disabled, "rgba(77, 171, 117, 0.05)", "rgba(77, 171, 117, 0.1)")
 
     text_color = rx.cond(is_selected, "#FFFFFF", "#4DAB75")
     cursor_style = rx.cond(disabled, "not-allowed", "pointer")
@@ -690,8 +690,5 @@ def food_page():
         ),
         min_height="100vh",
         background="#F8F9FA",
-        ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
         ),
     )

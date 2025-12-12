@@ -132,8 +132,7 @@ class BattleState(CarbonState):
             battle.winner = winner
             battle.status = "FINISHED"
             session.add(battle)
-            session.commit()
-            session.refresh(battle)
+            # 상태 업데이트는 보상 분배와 함께 원자적으로 커밋되어야 함
             
             # 참가자 조회
             participants = session.exec(
@@ -147,6 +146,18 @@ class BattleState(CarbonState):
                 
                 for p in participants:
                     user_college = self._get_user_college(p.student_id, session)
+                    # user_college가 None인 경우 처리 (사용자 조회 실패)
+                    if user_college is None:
+                        logger.warning(f"참가자 {p.student_id}의 단과대를 조회할 수 없습니다. 베팅 포인트를 반환합니다.")
+                        # 조회 실패한 참가자에게 베팅 포인트 반환
+                        p.reward_amount = p.bet_amount
+                        session.add(p)
+                        user = session.exec(select(User).where(User.student_id == p.student_id)).first()
+                        if user:
+                            user.current_points += p.bet_amount
+                            session.add(user)
+                        continue
+                    
                     if (battle.college_a == winner and user_college == battle.college_a) or \
                        (battle.college_b == winner and user_college == battle.college_b):
                         winner_participants.append(p)
@@ -186,10 +197,13 @@ class BattleState(CarbonState):
                         user.current_points += participant.bet_amount
                         session.add(user)
             
+            # 모든 작업(상태 업데이트 + 보상 분배)이 성공적으로 완료된 후에만 커밋
             session.commit()
             logger.info(f"대결 종료 처리 완료: Battle {battle_id}, 승자: {winner}")
             
         except Exception as e:
+            # 예외 발생 시 롤백하여 배틀 상태와 보상 분배가 모두 취소되도록 함
+            session.rollback()
             logger.error(f"대결 종료 처리 오류: {e}", exc_info=True)
     
     def _get_user_college(self, student_id: str, session) -> Optional[str]:
@@ -229,7 +243,8 @@ class BattleState(CarbonState):
                     college_b=college_b,
                     score_a=0,
                     score_b=0,
-                    status="ACTIVE"
+                    status="ACTIVE",
+                    created_at=datetime.now()
                 )
                 session.add(new_battle)
                 battles_created += 1
@@ -362,7 +377,8 @@ class BattleState(CarbonState):
                     battle_id=battle_id,
                     student_id=self.current_user_id,
                     bet_amount=self.battle_bet_amount,
-                    reward_amount=0
+                    reward_amount=0,
+                    joined_at=datetime.now()
                 )
                 session.add(participant)
                 

@@ -194,7 +194,7 @@ def render_points_section():
                         rx.foreach(
                             AppState.points_log,
                             lambda log: rx.hstack(
-                                rx.text(log["source"], color="#333333", size="2", margin_top="3px", font_weight="bold"),
+                                rx.text(log.get("description", ""), color="#333333", size="2", margin_top="3px", font_weight="bold"),
                                 rx.text(
                                     f"+{log['points']} 포인트",
                                     color="#4DAB75",
@@ -477,15 +477,12 @@ def render_dashboard_section():
                                             """
                                             // 30일 그래프 렌더링을 위해 데이터를 기다립니다
                                             setTimeout(function() {
-                                                const dataElement = document.getElementById('monthly-data-json');
-                                                if (!dataElement) return;
+                                                const data = window.monthlyData;
+                                                if (!data || data.length === 0) return;
 
-                                                const data = JSON.parse(dataElement.textContent);
                                                 const svg = document.getElementById('monthly-chart-svg');
                                                 const line = document.getElementById('emission-line');
                                                 const pointsGroup = document.getElementById('data-points');
-
-                                                if (!data || data.length === 0) return;
 
                                             const svgWidth = svg.clientWidth;
                                             const spacing = svgWidth / (data.length + 1);
@@ -496,16 +493,16 @@ def render_dashboard_section():
                                             const scale = maxEmission > 0 ? maxHeight / maxEmission : 1;
 
                                             // 꺾은선 경로 생성
-                                            const points = data.map((d, i) => {{
+                                            const points = data.map((d, i) => {
                                                 const x = spacing * (i + 1);
                                                 const y = 200 - (d.emission || 0) * scale;
-                                                return `${{x}},${{y}}`;
-                                            }}).join(' ');
+                                                return x + ',' + y;
+                                            }).join(' ');
 
                                             line.setAttribute('points', points);
 
                                             // 데이터 포인트와 툴팁 추가
-                                            data.forEach((d, i) => {{
+                                            data.forEach((d, i) => {
                                                 const x = spacing * (i + 1);
                                                 const y = 200 - (d.emission || 0) * scale;
 
@@ -561,38 +558,43 @@ def render_dashboard_section():
                                                 tooltipValue.setAttribute('font-size', '12');
                                                 tooltipValue.setAttribute('font-weight', 'bold');
                                                 tooltipValue.setAttribute('fill', '#4DAB75');
-                                                tooltipValue.textContent = `${{d.emission}}kg`;
+                                                tooltipValue.textContent = d.emission + 'kg';
 
                                                 tooltip.appendChild(tooltipBg);
                                                 tooltip.appendChild(tooltipDate);
                                                 tooltip.appendChild(tooltipValue);
 
                                                 // 호버 이벤트
-                                                g.addEventListener('mouseenter', () => {{
+                                                g.addEventListener('mouseenter', () => {
                                                     tooltip.style.opacity = '1';
                                                     circle.setAttribute('r', '6');
-                                                }});
+                                                });
 
-                                                g.addEventListener('mouseleave', () => {{
+                                                g.addEventListener('mouseleave', () => {
                                                     tooltip.style.opacity = '0';
                                                     circle.setAttribute('r', '4');
-                                                }});
+                                                });
 
                                                 g.appendChild(circle);
                                                 g.appendChild(tooltip);
                                                 pointsGroup.appendChild(g);
 
                                                 // 날짜 라벨은 별도로 추가
-                                                if (i % 3 === 0) {{ // 3일마다만 표시
+                                                if (i % 3 === 0) { // 3일마다만 표시
                                                     svg.appendChild(dateLabel);
-                                                }}
-                                            }});
+                                                }
+                                            });
                                         }, 100);
                                         """
                                         ),
                                         # 데이터를 JSON으로 숨겨서 전달
+                                        rx.script(
+                                            f"""
+                                            window.monthlyData = {rx.Var.create(AppState.monthly_daily_data).to_string()};
+                                            """
+                                        ),
                                         rx.html(
-                                            f"""<script type="application/json" id="monthly-data-json">{AppState.monthly_daily_data}</script>"""
+                                            """<div id="monthly-data-json" style="display:none;"></div>"""
                                         ),
                                     ),
                                     rx.text("데이터가 없습니다.", color="gray.400", size="3"),
@@ -627,77 +629,88 @@ def render_dashboard_section():
 
 
 # -----------------------------------------
-# ④ 마일리지 환산 섹션
+# ③ 마일리지 환산 섹션
 # -----------------------------------------
 def render_mileage_section():
     return rx.box(
         rx.vstack(
+
+            # ---------------------
+            # 페이지 타이틀
+            # ---------------------
             rx.heading("마일리지 환산", size="8", color="#333333"),
 
+            # ---------------------
+            # 환산 입력 박스
+            # ---------------------
             rx.box(
                 rx.vstack(
-                    rx.heading("포인트 → 마일리지 환산", size="6", color="#333333"),
+                    rx.heading("비컴 마일리지 환산", size="6", color="#333333"),
+
                     rx.text(
-                        "앱 내 포인트를 학교 BeCome 마일리지로 환산할 수 있습니다.",
-                        color="#777",
+                        "포인트 100점당 비컴 마일리지 10점으로 환산됩니다.",
+                        color="#555",
                         size="3",
-                        margin_bottom="10px",
+                        margin_bottom="5px",
                     ),
                     rx.text(
-                        f"현재 보유 포인트: {AppState.current_user_points:,}점",
-                        color="#4DAB75",
-                        size="4",
-                        font_weight="bold",
-                        margin_bottom="20px",
+                        "최소 100점 이상부터 환산 신청이 가능합니다.",
+                        color="#777",
+                        size="2",
+                        margin_bottom="15px",
                     ),
 
+                    # 입력창 + 버튼
                     rx.hstack(
                         rx.input(
-                            placeholder="환산할 포인트 입력",
-                            type="number",
+                            placeholder="환산할 포인트 입력 (최소 100점)",
                             value=AppState.mileage_request_points,
-                            on_change=AppState.set_mileage_points,
+                            on_change=AppState.set_mileage_request_points,
+                            type="number",
                             width="200px",
+                            border="1px solid #ccc",
+                            border_radius="8px",
+                            padding="8px",
                         ),
                         rx.button(
                             "환산 신청",
                             on_click=AppState.request_mileage_conversion,
-                            background_color="#4DAB75",
-                            color="white",
-                            padding="10px 20px",
-                            border_radius="8px",
-                            _hover={"background_color": "#3d8f5f"},
+                            color_scheme="green",
+                            size="3",
+                            is_disabled=AppState.current_user_points < 100,
                         ),
                         spacing="3",
                         align="center",
                     ),
 
+                    # 오류 메시지
                     rx.cond(
                         AppState.mileage_error_message != "",
-                        rx.box(
-                            rx.text(
-                                AppState.mileage_error_message,
-                                color=rx.cond(
-                                    AppState.mileage_error_message.contains("✅"),
-                                    "#4DAB75",
-                                    "red"
-                                ),
-                                size="3",
-                                font_weight="500",
-                            ),
-                            padding="10px",
-                            border_radius="8px",
-                            background=rx.cond(
-                                AppState.mileage_error_message.contains("✅"),
-                                "rgba(77, 171, 117, 0.1)",
-                                "rgba(255, 0, 0, 0.1)"
-                            ),
+                        rx.text(
+                            AppState.mileage_error_message,
+                            color="red",
+                            size="3",
                             margin_top="10px",
                         ),
+                        rx.text("", display="none"),
+                    ),
+
+                    # 환산 예상 결과
+                    rx.cond(
+                        AppState.mileage_request_points >= 100,
+                        rx.text(
+                            f"환산 예상 마일리지: {(AppState.mileage_request_points // 100) * 10}점",
+                            color="#4DAB75",
+                            size="4",
+                            font_weight="bold",
+                            margin_top="10px",
+                        ),
+                        rx.text("", display="none"),
                     ),
 
                     spacing="3",
                     align="start",
+                    width="100%",
                 ),
                 padding="30px",
                 border_radius="16px",
@@ -708,10 +721,66 @@ def render_mileage_section():
 
             rx.divider(),
 
-            rx.text(
-                "환산 비율: 100 포인트 = 1 마일리지",
-                color="#777",
-                size="2",
+            # ---------------------
+            # 환산 내역 섹션
+            # ---------------------
+            rx.heading("마일리지 환산 내역", size="6", color="#333333"),
+
+            rx.box(
+                rx.cond(
+                    AppState.mileage_conversion_logs.length() > 0,
+                    rx.vstack(
+                        rx.foreach(
+                            AppState.mileage_conversion_logs,
+                            lambda log: rx.hstack(
+                                rx.vstack(
+                                    rx.text(
+                                        log["date"],
+                                        color="#333333",
+                                        size="3",
+                                        font_weight="bold",
+                                    ),
+                                    rx.text(
+                                        f"-{log['request_points']} 포인트 → +{log['converted_mileage']} 마일리지",
+                                        color="#4DAB75",
+                                        size="4",
+                                        font_weight="bold",
+                                    ),
+                                    spacing="1",
+                                ),
+                                rx.cond(
+                                    log["status"] == "APPROVED",
+                                    rx.badge(
+                                        "승인완료",
+                                        color_scheme="green",
+                                        size="2",
+                                    ),
+                                    rx.badge(
+                                        log["status"],
+                                        color_scheme="gray",
+                                        size="2",
+                                    ),
+                                ),
+                                justify="between",
+                                width="100%",
+                                padding="15px",
+                                border_radius="8px",
+                                background="#F1F3F4",
+                                margin_bottom="8px",
+                            ),
+                        ),
+                        spacing="2",
+                        width="100%",
+                        max_width="600px",
+                    ),
+                    rx.text(
+                        "아직 환산 내역이 없습니다.",
+                        color="gray",
+                        size="3",
+                    ),
+                ),
+                width="100%",
+                max_width="600px",
             ),
 
             spacing="5",
@@ -729,105 +798,253 @@ def mypage_page() -> rx.Component:
     return rx.cond(
         AppState.is_logged_in,
         rx.box(
-            # fade-in CSS 추가
-            rx.html(FADEIN_CSS),
 
+            rx.html(FADEIN_CSS),
             header(),
 
-        rx.hstack(
-            # ----------- 왼쪽 사이드바 -----------
-            rx.box(
-                rx.vstack(
-                    rx.button(
-                        "내 포인트",
-                        on_click=lambda: AppState.set_mypage_section("points"),
-                        size="3",
-                        font_weight="bold",
-                        background=rx.cond(AppState.mypage_section == "points", "#F1F3F4", "transparent"),
-                        color=rx.cond(AppState.mypage_section == "points", "#333333", "white"),
-                        width="100%",
-                        border_radius="10px",
-                        padding="12px",
-                        justify_content="start",
-                        text_align="left",
+            rx.hstack(
+
+                # ----------- 왼쪽 사이드바 -----------
+                rx.box(
+                    rx.vstack(
+
+                        # ------------------------
+                        # 기존 메뉴들
+                        # ------------------------
+                        rx.button(
+                            "내 포인트",
+                            on_click=lambda: AppState.set_mypage_section("points"),
+                            size="3",
+                            font_weight="bold",
+                            background=rx.cond(AppState.mypage_section == "points", "#F1F3F4", "transparent"),
+                            color=rx.cond(AppState.mypage_section == "points", "#333333", "white"),
+                            width="100%",
+                            border_radius="10px",
+                            padding="12px",
+                            justify_content="start",
+                            text_align="left",
+                        ),
+                        rx.button(
+                            "챌린지 현황",
+                            on_click=lambda: AppState.set_mypage_section("challenge"),
+                            size="3",
+                            font_weight="bold",
+                            background=rx.cond(AppState.mypage_section == "challenge", "#F1F3F4", "transparent"),
+                            color=rx.cond(AppState.mypage_section == "challenge", "#333333", "white"),
+                            width="100%",
+                            border_radius="10px",
+                            padding="12px",
+                            justify_content="start",
+                            text_align="left",
+                        ),
+                        rx.button(
+                            "탄소 배출 대시보드",
+                            on_click=lambda: AppState.set_mypage_section("dashboard"),
+                            size="3",
+                            font_weight="bold",
+                            background=rx.cond(AppState.mypage_section == "dashboard", "#F1F3F4", "transparent"),
+                            color=rx.cond(AppState.mypage_section == "dashboard", "#333333", "white"),
+                            width="100%",
+                            border_radius="10px",
+                            padding="12px",
+                            justify_content="start",
+                            text_align="left",
+                        ),
+
+                        # ------------------------
+                        # ⭐ 신규 메뉴: 마일리지 환산
+                        # ------------------------
+                        rx.button(
+                            "마일리지 환산",
+                            on_click=lambda: AppState.set_mypage_section("mileage"),
+                            size="3",
+                            font_weight="bold",
+                            background=rx.cond(AppState.mypage_section == "mileage", "#F1F3F4", "transparent"),
+                            color=rx.cond(AppState.mypage_section == "mileage", "#333333", "white"),
+                            width="100%",
+                            border_radius="10px",
+                            padding="12px",
+                            justify_content="start",
+                            text_align="left",
+                        ),
+
+                        spacing="3",
+                        padding="20px",
                     ),
-                    rx.button(
-                        "챌린지 현황",
-                        on_click=lambda: AppState.set_mypage_section("challenge"),
-                        size="3",
-                        font_weight="bold",
-                        background=rx.cond(AppState.mypage_section == "challenge", "#F1F3F4", "transparent"),
-                        color=rx.cond(AppState.mypage_section == "challenge", "#333333", "white"),
-                        width="100%",
-                        border_radius="10px",
-                        padding="12px",
-                        justify_content="start",
-                        text_align="left",
-                    ),
-                    rx.button(
-                        "탄소 배출 대시보드",
-                        on_click=lambda: AppState.set_mypage_section("dashboard"),
-                        size="3",
-                        font_weight="bold",
-                        background=rx.cond(AppState.mypage_section == "dashboard", "#F1F3F4", "transparent"),
-                        color=rx.cond(AppState.mypage_section == "dashboard", "#333333", "white"),
-                        width="100%",
-                        border_radius="10px",
-                        padding="12px",
-                        justify_content="start",
-                        text_align="left",
-                    ),
-                    rx.button(
-                        "마일리지 환산",
-                        on_click=lambda: AppState.set_mypage_section("mileage"),
-                        size="3",
-                        font_weight="bold",
-                        background=rx.cond(AppState.mypage_section == "mileage", "#F1F3F4", "transparent"),
-                        color=rx.cond(AppState.mypage_section == "mileage", "#333333", "white"),
-                        width="100%",
-                        border_radius="10px",
-                        padding="12px",
-                        justify_content="start",
-                        text_align="left",
-                    ),
-                    spacing="3",
-                    padding="20px",
+                    width="300px",
+                    background="#4DAB75",
+                    min_height="600px",
+                    border_radius="20px",
+                    margin="30px",
                 ),
-                width="300px",
-                background="#4DAB75",
-                min_height="600px",
-                border_radius="20px",
-                margin="30px",
-            ),
 
+                # ----------- 오른쪽 컨텐츠 -----------
 
-            # ----------- 오른쪽 컨텐츠 -----------
-            rx.box(
-                rx.cond(
-                    AppState.mypage_section == "points",
-                    render_points_section(),
+                rx.box(
                     rx.cond(
-                        AppState.mypage_section == "challenge",
-                        render_challenge_section(),
+                        AppState.mypage_section == "points",
+                        render_points_section(),
                         rx.cond(
-                            AppState.mypage_section == "dashboard",
-                            render_dashboard_section(),
-                            render_mileage_section(),
+                            AppState.mypage_section == "challenge",
+                            render_challenge_section(),
+                            rx.cond(
+                                AppState.mypage_section == "dashboard",
+                                render_dashboard_section(),
+                                rx.cond(
+                                    AppState.mypage_section == "mileage",
+                                    render_mileage_section(),
+                                )
+                            ),
                         ),
                     ),
+                    width="100%",
+                    padding="40px",
                 ),
+
                 width="100%",
-                padding="40px",
             ),
 
-            width="100%",
-        ),
-
-        background="#F8F9FA",
-        min_height="100vh",
-        on_mount=lambda: [AppState.set_mypage_section("points"), AppState.load_mypage_data()],
-        ),
-        rx.box(
-            on_mount=rx.redirect("/auth"),
+            background="#F8F9FA",
+            min_height="100vh",
+            on_mount=lambda: [AppState.set_mypage_section("points"), AppState.load_mypage_data()],
         ),
     )
+
+
+
+# 마일리지 환산 섹션
+                    # rx.box(
+                    #     rx.vstack(
+                    #         rx.heading("💳 비컴 마일리지 환산", size="6", color="white", margin_bottom="20px"),
+                    #         rx.text(
+                    #             "포인트 100점당 비컴 마일리지 10점으로 환산됩니다.",
+                    #             color="gray.300",
+                    #             size="3",
+                    #             margin_bottom="15px",
+                    #         ),
+                    #         rx.text(
+                    #             "최소 100점 이상부터 환산 신청이 가능합니다.",
+                    #             color="gray.400",
+                    #             size="2",
+                    #             margin_bottom="20px",
+                    #         ),
+                    #         rx.hstack(
+                    #             rx.input(
+                    #                 placeholder="환산할 포인트 입력 (최소 100점)",
+                    #                 value=AppState.mileage_request_points,
+                    #                 on_change=AppState.set_mileage_request_points,
+                    #                 type="number",
+                    #                 min=100,
+                    #                 width="200px",
+                    #                 color="white",
+                    #                 border="1px solid rgba(255, 255, 255, 0.3)",
+                    #             ),
+                    #             rx.button(
+                    #                 "환산 신청",
+                    #                 on_click=AppState.request_mileage_conversion,
+                    #                 color_scheme="green",
+                    #                 size="3",
+                    #                 is_disabled=AppState.current_user_points < 100,
+                    #             ),
+                    #             spacing="3",
+                    #             align="center",
+                    #             width="100%",
+                    #             justify="center",
+                    #         ),
+                    #         rx.cond(
+                    #             AppState.mileage_error_message != "",
+                    #             rx.text(
+                    #                 AppState.mileage_error_message,
+                    #                 color="red.300",
+                    #                 size="3",
+                    #                 margin_top="10px",
+                    #             ),
+                    #             rx.text("", display="none"),
+                    #         ),
+                    #         rx.cond(
+                    #             AppState.mileage_request_points >= 100,
+                    #             rx.text(
+                    #                 f"환산 예상 마일리지: {(AppState.mileage_request_points // 100) * 10}점",
+                    #                 color="green.300",
+                    #                 size="3",
+                    #                 font_weight="bold",
+                    #                 margin_top="10px",
+                    #             ),
+                    #             rx.text("", display="none"),
+                    #         ),
+                    #         spacing="3",
+                    #     ),
+                    #     padding="30px",
+                    #     border_radius="16px",
+                    #     background="rgba(0, 0, 0, 0.3)",
+                    #     width="100%",
+                    #     max_width="600px",
+                    #     margin_bottom="30px",
+                    # ),
+                    
+                    # # 마일리지 환산 내역 섹션
+                    # rx.box(
+                    #     rx.vstack(
+                    #         rx.heading("📋 마일리지 환산 내역", size="6", color="white", margin_bottom="20px"),
+                    #         rx.cond(
+                    #             AppState.mileage_conversion_logs.length() > 0,
+                    #             rx.vstack(
+                    #                 rx.foreach(
+                    #                     AppState.mileage_conversion_logs,
+                    #                     lambda log: rx.hstack(
+                    #                         rx.vstack(
+                    #                             rx.text(
+                    #                                 log["date"],
+                    #                                 color="white",
+                    #                                 size="3",
+                    #                                 font_weight="bold",
+                    #                             ),
+                    #                             rx.text(
+                    #                                 f"-{log['request_points']} 포인트 → +{log['converted_mileage']} 마일리지",
+                    #                                 color="green.300",
+                    #                                 size="4",
+                    #                                 font_weight="bold",
+                    #                             ),
+                    #                             spacing="1",
+                    #                             align="start",
+                    #                         ),
+                    #                         rx.cond(
+                    #                             log["status"] == "APPROVED",
+                    #                             rx.badge(
+                    #                                 "승인완료",
+                    #                                 color_scheme="green",
+                    #                                 size="2",
+                    #                             ),
+                    #                             rx.badge(
+                    #                                 log["status"],
+                    #                                 color_scheme="gray",
+                    #                                 size="2",
+                    #                             ),
+                    #                         ),
+                    #                         spacing="4",
+                    #                         justify="between",
+                    #                         width="100%",
+                    #                         padding="15px",
+                    #                         border_radius="8px",
+                    #                         background="rgba(255, 255, 255, 0.1)",
+                    #                         margin_bottom="8px",
+                    #                     ),
+                    #                 ),
+                    #                 spacing="2",
+                    #                 width="100%",
+                    #             ),
+                    #             rx.text(
+                    #                 "아직 환산 내역이 없습니다.",
+                    #                 color="gray.400",
+                    #                 size="3",
+                    #             ),
+                    #         ),
+                    #         spacing="3",
+                    #     ),
+                    #     padding="30px",
+                    #     border_radius="16px",
+                    #     background="rgba(0, 0, 0, 0.3)",
+                    #     width="100%",
+                    #     max_width="600px",
+                    #     margin_bottom="30px",
+                    # ),

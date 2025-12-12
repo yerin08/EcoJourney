@@ -24,12 +24,13 @@ from .pages.ranking import ranking_page
 app = rx.App()
 
 # 1. 메인 홈 화면 라우팅 (EcoJourney.py 파일 내 home_page 함수 사용)
-app.add_page(home_page, route="/", title="ECOJOURNEY")
+# on_load에서 세션 복원 체크
+app.add_page(home_page, route="/", title="ECOJOURNEY", on_load=AppState.check_and_restore_session)
 
 # 2. 리포트 시작 화면 라우팅
-app.add_page(intro_page, route="/intro", title="ECOJOURNEY | 리포트")
+app.add_page(intro_page, route="/intro", title="ECOJOURNEY | 리포트", on_load=AppState.check_and_restore_session)
 # 2-1. 챌린지 페이지
-app.add_page(info_page, route="/info", title="ECOJOURNEY | 챌린지", on_load=AppState.load_active_challenges)
+app.add_page(info_page, route="/info", title="ECOJOURNEY | 챌린지", on_load=[AppState.check_and_restore_session, AppState.load_active_challenges])
 
 # 2-1. 로그인/회원가입 화면 라우팅
 app.add_page(auth_page, route="/auth", title="ECOJOURNEY | 로그인")
@@ -47,15 +48,15 @@ app.add_page(water_page, route="/input/water", title="ECOJOURNEY | 물")
 app.add_page(report_page, route="/report", title="ECOJOURNEY | 결과 리포트")
 
 # 5. 마이페이지 라우팅
-app.add_page(mypage_page, route="/mypage", title="ECOJOURNEY | 마이페이지", on_load=AppState.load_mypage_data)
+app.add_page(mypage_page, route="/mypage", title="ECOJOURNEY | 마이페이지", on_load=[AppState.check_and_restore_session, AppState.load_mypage_data])
 
 # 6. 배틀 페이지 라우팅
-app.add_page(battle_page, route="/battle", title="ECOJOURNEY | 배틀", on_load=AppState.load_current_battle)
+app.add_page(battle_page, route="/battle", title="ECOJOURNEY | 배틀", on_load=[AppState.check_and_restore_session, AppState.load_current_battle])
 
 # 7. 저번주 랭킹 페이지 라우팅
 app.add_page(
-    ranking_page, 
-    route="/ranking", 
-    title="EcoJourney | 랭킹", 
-    on_load=AppState.load_ranking_data
+    ranking_page,
+    route="/ranking",
+    title="ECOJOURNEY | 랭킹",
+    on_load=[AppState.check_and_restore_session, AppState.load_ranking_data]
 )

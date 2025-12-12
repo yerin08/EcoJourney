@@ -33,8 +33,6 @@ EMISSION_FACTORS = {
         # 가방/잡화는 상의와 동일한 계수 사용
         "가방/잡화_새제품": 2.0,
         "가방/잡화_빈티지": 0.2,
-        "가방/잡화_새제품": 2.0,
-        "가방/잡화_빈티지": 0.2,
     },
     "식품": {
         # 육류 (kgCO₂e/kg)
@@ -247,7 +245,8 @@ def calculate_carbon_emission(
                 value=value,
                 unit=unit,
                 converted_value=converted_value,
-                standard_unit=standard_unit
+                standard_unit=standard_unit,
+                sub_category=sub_category
             )
             if carbon_emission is not None:
                 calculation_method = "api"
@@ -274,8 +273,10 @@ def calculate_carbon_emission(
                 # 파스타는 이미 API로 계산되었으므로 여기서는 처리하지 않음
                 # (API 실패 시에만 여기로 옴)
                 logger.warning(f"[탄소 계산] 파스타 API 사용 항목인데 로컬 계산으로 넘어옴: {activity_type}")
-                # Fallback으로 한끼 기준 배출 계수 사용
-                carbon_emission = calculate_food_by_name(activity_type, servings=converted_value)
+                # Fallback: 파스타는 weight-based 계산이므로 servings를 weight_kg로 변환
+                # API 호출 시와 동일하게 1회를 0.25kg (250g)로 변환
+                weight_kg = converted_value * 0.25
+                carbon_emission = calculate_food_by_name(activity_type, weight_kg=weight_kg)
             else:
                 # 한끼 기준 로컬 계산
                 if standard_unit == "회":
