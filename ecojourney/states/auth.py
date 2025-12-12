@@ -38,10 +38,12 @@ class AuthState(BaseState):
         """로그인 세션을 브라우저 localStorage 및 쿠키에 저장"""
         # 쿠키에 user_id 저장 (Reflex 방식)
         self._session_user_id = self.current_user_id or ""
+        logger.info(f"[세션 저장] 쿠키에 저장: {self._session_user_id}")
 
         # localStorage에도 저장 (호환성을 위해)
-        return rx.call_script(
+        yield rx.call_script(
             f"""
+            console.log('[세션 저장] localStorage에 저장:', '{self.current_user_id}');
             localStorage.setItem('eco_user_id', '{self.current_user_id}');
             localStorage.setItem('eco_user_college', '{self.current_user_college}');
             localStorage.setItem('eco_user_points', '{self.current_user_points}');
@@ -53,10 +55,12 @@ class AuthState(BaseState):
         """localStorage 및 쿠키에서 세션 정보 삭제"""
         # 쿠키 삭제
         self._session_user_id = ""
+        logger.info(f"[세션 삭제] 쿠키 및 localStorage 삭제")
 
         # localStorage 삭제
-        return rx.call_script(
+        yield rx.call_script(
             """
+            console.log('[세션 삭제] localStorage 삭제');
             localStorage.removeItem('eco_user_id');
             localStorage.removeItem('eco_user_college');
             localStorage.removeItem('eco_user_points');
@@ -64,19 +68,23 @@ class AuthState(BaseState):
             """
         )
 
-    async def check_and_restore_session(self):
+    def check_and_restore_session(self):
         """
         페이지 로드 시 쿠키에서 세션을 확인하고 복원
         """
+        logger.info(f"[세션 복원] 시작 - is_logged_in: {self.is_logged_in}")
+
         # 이미 로그인되어 있으면 복원할 필요 없음
         if self.is_logged_in:
+            logger.info("[세션 복원] 이미 로그인됨 - 복원 스킵")
             return
 
         # 쿠키에서 user_id 확인
         user_id = self._session_user_id
+        logger.info(f"[세션 복원] 쿠키에서 user_id 확인: {user_id}")
 
         if not user_id or user_id == "":
-            logger.debug("쿠키에 세션 정보 없음")
+            logger.warning("[세션 복원] 쿠키에 세션 정보 없음 - 로그인 필요")
             return
 
         try:
@@ -87,7 +95,7 @@ class AuthState(BaseState):
             if not user:
                 # 사용자가 존재하지 않으면 세션 삭제
                 logger.warning(f"세션 복원 실패 - 사용자 없음: {user_id}")
-                self._clear_session_storage()
+                yield from self._clear_session_storage()
                 return
 
             # 세션 복원
@@ -100,7 +108,7 @@ class AuthState(BaseState):
 
         except Exception as e:
             logger.error(f"세션 복원 오류: {e}", exc_info=True)
-            self._clear_session_storage()
+            yield from self._clear_session_storage()
     
     # Setter 메서드들 (명시적 정의)
     def set_login_student_id(self, value: str):
@@ -122,7 +130,7 @@ class AuthState(BaseState):
         """비밀번호를 해시화합니다."""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    async def signup(self):
+    def signup(self):
         """회원가입 처리 (auth_service 사용 - FastAPI와 통합)"""
         self.auth_error_message = ""
 
@@ -188,7 +196,7 @@ class AuthState(BaseState):
             logger.info(f"회원가입 성공: {self.current_user_id}")
 
             # 세션 저장
-            self._save_session_to_storage()
+            yield from self._save_session_to_storage()
 
             return rx.redirect("/")
 
@@ -196,7 +204,7 @@ class AuthState(BaseState):
             self.auth_error_message = f"회원가입 실패: {str(e)}"
             logger.error(f"회원가입 오류: {e}", exc_info=True)
     
-    async def login(self):
+    def login(self):
         """로그인 처리 (auth_service 사용 - FastAPI와 통합)"""
         self.auth_error_message = ""
 
@@ -232,18 +240,10 @@ class AuthState(BaseState):
             self.login_student_id = ""
             self.login_password = ""
 
-            # 저장된 오늘 날짜의 데이터 자동 불러오기 (CarbonState에 있으므로 조건부 호출)
-            # load_saved_activities는 CarbonState에 정의되어 있음
-            if hasattr(self, 'load_saved_activities'):
-                try:
-                    await self.load_saved_activities()
-                except Exception as load_error:
-                    logger.warning(f"저장된 데이터 불러오기 실패 (무시): {load_error}")
-
             logger.info(f"로그인 성공: {self.current_user_id}")
 
             # 세션 저장
-            self._save_session_to_storage()
+            yield from self._save_session_to_storage()
 
             return rx.redirect("/")
 
@@ -251,8 +251,10 @@ class AuthState(BaseState):
             self.auth_error_message = f"로그인 실패: {str(e)}"
             logger.error(f"로그인 오류: {e}", exc_info=True)
     
-    async def logout(self):
+    def logout(self):
         """로그아웃 처리"""
+        logger.info(f"[로그아웃] 사용자: {self.current_user_id}")
+
         self.current_user_id = None
         self.current_user_college = None
         self.current_user_points = 0
@@ -260,7 +262,7 @@ class AuthState(BaseState):
         self.all_activities = []
 
         # 세션 스토리지 삭제
-        self._clear_session_storage()
+        yield from self._clear_session_storage()
 
         return rx.redirect("/")
 

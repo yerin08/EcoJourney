@@ -478,151 +478,148 @@ def render_dashboard_section():
                                             """
                                         ),
                                         rx.script(
-                                            """
-                                            // 30일 그래프 렌더링을 위해 데이터를 기다립니다
-                                            setTimeout(function() {
-                                                const data = window.monthlyData;
-                                                console.log('[30일 그래프] 데이터:', data);
-
-                                                if (!data || data.length === 0) {
-                                                    console.log('[30일 그래프] 데이터 없음 또는 빈 배열');
-                                                    return;
-                                                }
-
-                                                const svg = document.getElementById('monthly-chart-svg');
-                                                const line = document.getElementById('emission-line');
-                                                const pointsGroup = document.getElementById('data-points');
-
-                                                if (!svg || !line || !pointsGroup) {
-                                                    console.log('[30일 그래프] SVG 요소를 찾을 수 없음');
-                                                    return;
-                                                }
-
-                                                console.log('[30일 그래프] 렌더링 시작, 데이터 개수:', data.length);
-
-                                            const svgWidth = svg.clientWidth;
-                                            const spacing = svgWidth / (data.length + 1);
-                                            const maxHeight = 180;
-
-                                            // 최대값 찾기
-                                            const maxEmission = Math.max(...data.map(d => d.emission || 0));
-                                            const scale = maxEmission > 0 ? maxHeight / maxEmission : 1;
-
-                                            // 꺾은선 경로 생성
-                                            const points = data.map((d, i) => {
-                                                const x = spacing * (i + 1);
-                                                const y = 200 - (d.emission || 0) * scale;
-                                                return x + ',' + y;
-                                            }).join(' ');
-
-                                            line.setAttribute('points', points);
-
-                                            // 데이터 포인트와 툴팁 추가
-                                            data.forEach((d, i) => {
-                                                const x = spacing * (i + 1);
-                                                const y = 200 - (d.emission || 0) * scale;
-
-                                                // 포인트 그룹
-                                                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                                                g.style.cursor = 'pointer';
-
-                                                // 데이터 포인트 (원)
-                                                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                                                circle.setAttribute('cx', x);
-                                                circle.setAttribute('cy', y);
-                                                circle.setAttribute('r', '4');
-                                                circle.setAttribute('fill', '#4DAB75');
-                                                circle.setAttribute('stroke', '#FFFFFF');
-                                                circle.setAttribute('stroke-width', '2');
-
-                                                // 날짜 라벨 (x축)
-                                                const dateLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                                dateLabel.setAttribute('x', x);
-                                                dateLabel.setAttribute('y', '220');
-                                                dateLabel.setAttribute('text-anchor', 'middle');
-                                                dateLabel.setAttribute('font-size', '10');
-                                                dateLabel.setAttribute('fill', '#777');
-                                                dateLabel.textContent = d.month_day;
-
-                                                // 툴팁
-                                                const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                                                tooltip.style.opacity = '0';
-                                                tooltip.style.transition = 'opacity 0.2s';
-                                                tooltip.style.pointerEvents = 'none';
-
-                                                const tooltipBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                                                tooltipBg.setAttribute('x', x - 40);
-                                                tooltipBg.setAttribute('y', y - 50);
-                                                tooltipBg.setAttribute('width', '80');
-                                                tooltipBg.setAttribute('height', '35');
-                                                tooltipBg.setAttribute('rx', '6');
-                                                tooltipBg.setAttribute('fill', '#333333');
-                                                tooltipBg.setAttribute('opacity', '0.9');
-
-                                                const tooltipDate = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                                tooltipDate.setAttribute('x', x);
-                                                tooltipDate.setAttribute('y', y - 35);
-                                                tooltipDate.setAttribute('text-anchor', 'middle');
-                                                tooltipDate.setAttribute('font-size', '11');
-                                                tooltipDate.setAttribute('fill', '#FFFFFF');
-                                                tooltipDate.textContent = d.month_day;
-
-                                                const tooltipValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                                tooltipValue.setAttribute('x', x);
-                                                tooltipValue.setAttribute('y', y - 22);
-                                                tooltipValue.setAttribute('text-anchor', 'middle');
-                                                tooltipValue.setAttribute('font-size', '12');
-                                                tooltipValue.setAttribute('font-weight', 'bold');
-                                                tooltipValue.setAttribute('fill', '#4DAB75');
-                                                tooltipValue.textContent = d.emission + 'kg';
-
-                                                tooltip.appendChild(tooltipBg);
-                                                tooltip.appendChild(tooltipDate);
-                                                tooltip.appendChild(tooltipValue);
-
-                                                // 호버 이벤트
-                                                g.addEventListener('mouseenter', () => {
-                                                    tooltip.style.opacity = '1';
-                                                    circle.setAttribute('r', '6');
-                                                });
-
-                                                g.addEventListener('mouseleave', () => {
-                                                    tooltip.style.opacity = '0';
-                                                    circle.setAttribute('r', '4');
-                                                });
-
-                                                g.appendChild(circle);
-                                                g.appendChild(tooltip);
-                                                pointsGroup.appendChild(g);
-
-                                                // 날짜 라벨은 별도로 추가
-                                                if (i % 3 === 0) { // 3일마다만 표시
-                                                    svg.appendChild(dateLabel);
-                                                }
-                                            });
-                                        }, 100);
-                                        """
-                                        ),
-                                        # 데이터를 JSON으로 전달
-                                        rx.script(
                                             f"""
-                                            console.log('[스크립트 실행 시작]');
-                                            try {{
-                                                window.monthlyData = {AppState.monthly_daily_data};
-                                                console.log('[데이터 전달] window.monthlyData:', window.monthlyData);
-                                                console.log('[데이터 전달] Type:', typeof window.monthlyData);
-                                                console.log('[데이터 전달] Is Array:', Array.isArray(window.monthlyData));
-                                                if (window.monthlyData) {{
-                                                    console.log('[데이터 전달] Length:', window.monthlyData.length);
-                                                    if (window.monthlyData.length > 0) {{
-                                                        console.log('[데이터 전달] First item:', window.monthlyData[0]);
+                                            // 데이터 전달 및 30일 그래프 렌더링
+                                            (function() {{
+                                                console.log('[30일 그래프] 스크립트 실행 시작');
+
+                                                // 1. 데이터 전달
+                                                try {{
+                                                    const monthlyData = {AppState.monthly_daily_data};
+                                                    console.log('[30일 그래프] 데이터 전달:', monthlyData);
+                                                    console.log('[30일 그래프] Type:', typeof monthlyData);
+                                                    console.log('[30일 그래프] Is Array:', Array.isArray(monthlyData));
+                                                    console.log('[30일 그래프] Length:', monthlyData ? monthlyData.length : 0);
+
+                                                    if (!monthlyData || monthlyData.length === 0) {{
+                                                        console.log('[30일 그래프] 데이터 없음 - 렌더링 중단');
+                                                        return;
                                                     }}
+
+                                                    // 2. 그래프 렌더링 (약간의 지연 후)
+                                                    setTimeout(function() {{
+                                                        console.log('[30일 그래프] 렌더링 시작');
+
+                                                        const svg = document.getElementById('monthly-chart-svg');
+                                                        const line = document.getElementById('emission-line');
+                                                        const pointsGroup = document.getElementById('data-points');
+
+                                                        if (!svg || !line || !pointsGroup) {{
+                                                            console.error('[30일 그래프] SVG 요소를 찾을 수 없음');
+                                                            return;
+                                                        }}
+
+                                                        const svgWidth = svg.clientWidth;
+                                                        const spacing = svgWidth / (monthlyData.length + 1);
+                                                        const maxHeight = 180;
+
+                                                        // 최대값 찾기
+                                                        const maxEmission = Math.max(...monthlyData.map(d => d.emission || 0));
+                                                        const scale = maxEmission > 0 ? maxHeight / maxEmission : 1;
+
+                                                        console.log('[30일 그래프] svgWidth:', svgWidth, 'spacing:', spacing, 'maxEmission:', maxEmission);
+
+                                                        // 꺾은선 경로 생성
+                                                        const points = monthlyData.map((d, i) => {{
+                                                            const x = spacing * (i + 1);
+                                                            const y = 200 - (d.emission || 0) * scale;
+                                                            return x + ',' + y;
+                                                        }}).join(' ');
+
+                                                        line.setAttribute('points', points);
+                                                        console.log('[30일 그래프] 꺾은선 경로 설정 완료');
+
+                                                        // 데이터 포인트와 툴팁 추가
+                                                        monthlyData.forEach((d, i) => {{
+                                                            const x = spacing * (i + 1);
+                                                            const y = 200 - (d.emission || 0) * scale;
+
+                                                            // 포인트 그룹
+                                                            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                                                            g.style.cursor = 'pointer';
+
+                                                            // 데이터 포인트 (원)
+                                                            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                                            circle.setAttribute('cx', x);
+                                                            circle.setAttribute('cy', y);
+                                                            circle.setAttribute('r', '4');
+                                                            circle.setAttribute('fill', '#4DAB75');
+                                                            circle.setAttribute('stroke', '#FFFFFF');
+                                                            circle.setAttribute('stroke-width', '2');
+
+                                                            // 날짜 라벨 (x축)
+                                                            const dateLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                                            dateLabel.setAttribute('x', x);
+                                                            dateLabel.setAttribute('y', '220');
+                                                            dateLabel.setAttribute('text-anchor', 'middle');
+                                                            dateLabel.setAttribute('font-size', '10');
+                                                            dateLabel.setAttribute('fill', '#777');
+                                                            dateLabel.textContent = d.month_day;
+
+                                                            // 툴팁
+                                                            const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                                                            tooltip.style.opacity = '0';
+                                                            tooltip.style.transition = 'opacity 0.2s';
+                                                            tooltip.style.pointerEvents = 'none';
+
+                                                            const tooltipBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                                            tooltipBg.setAttribute('x', x - 40);
+                                                            tooltipBg.setAttribute('y', y - 50);
+                                                            tooltipBg.setAttribute('width', '80');
+                                                            tooltipBg.setAttribute('height', '35');
+                                                            tooltipBg.setAttribute('rx', '6');
+                                                            tooltipBg.setAttribute('fill', '#333333');
+                                                            tooltipBg.setAttribute('opacity', '0.9');
+
+                                                            const tooltipDate = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                                            tooltipDate.setAttribute('x', x);
+                                                            tooltipDate.setAttribute('y', y - 35);
+                                                            tooltipDate.setAttribute('text-anchor', 'middle');
+                                                            tooltipDate.setAttribute('font-size', '11');
+                                                            tooltipDate.setAttribute('fill', '#FFFFFF');
+                                                            tooltipDate.textContent = d.month_day;
+
+                                                            const tooltipValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                                            tooltipValue.setAttribute('x', x);
+                                                            tooltipValue.setAttribute('y', y - 22);
+                                                            tooltipValue.setAttribute('text-anchor', 'middle');
+                                                            tooltipValue.setAttribute('font-size', '12');
+                                                            tooltipValue.setAttribute('font-weight', 'bold');
+                                                            tooltipValue.setAttribute('fill', '#4DAB75');
+                                                            tooltipValue.textContent = d.emission + 'kg';
+
+                                                            tooltip.appendChild(tooltipBg);
+                                                            tooltip.appendChild(tooltipDate);
+                                                            tooltip.appendChild(tooltipValue);
+
+                                                            // 호버 이벤트
+                                                            g.addEventListener('mouseenter', () => {{
+                                                                tooltip.style.opacity = '1';
+                                                                circle.setAttribute('r', '6');
+                                                            }});
+
+                                                            g.addEventListener('mouseleave', () => {{
+                                                                tooltip.style.opacity = '0';
+                                                                circle.setAttribute('r', '4');
+                                                            }});
+
+                                                            g.appendChild(circle);
+                                                            g.appendChild(tooltip);
+                                                            pointsGroup.appendChild(g);
+
+                                                            // 날짜 라벨은 별도로 추가
+                                                            if (i % 3 === 0) {{ // 3일마다만 표시
+                                                                svg.appendChild(dateLabel);
+                                                            }}
+                                                        }});
+
+                                                        console.log('[30일 그래프] 렌더링 완료');
+                                                    }}, 150);
+
+                                                }} catch (e) {{
+                                                    console.error('[30일 그래프] Error:', e);
                                                 }}
-                                            }} catch (e) {{
-                                                console.error('[데이터 전달] Error:', e);
-                                                window.monthlyData = [];
-                                            }}
-                                            console.log('[스크립트 실행 완료]');
+                                            }})();
                                             """
                                         ),
                                     ),

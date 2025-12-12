@@ -244,7 +244,7 @@ def clothing_page():
             rx.container(
             rx.vstack(
                 rx.heading(
-                    "Your Clothing Choices",
+                    "의류",
                     size="9",
                     color="#333333",
                     font_weight="700",

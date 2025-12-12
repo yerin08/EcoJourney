@@ -33,7 +33,7 @@ class ChallengeState(MileageState):
     weekly_daily_data: List[Dict[str, Any]] = []  # 이번주 일별 배출량 데이터
     monthly_daily_data: List[Dict[str, Any]] = []  # 한달 일별 배출량 데이터
     
-    async def ensure_default_challenges(self):
+    def ensure_default_challenges(self):
         """필수 기본 챌린지(주간/일일) 생성"""
         try:
             from sqlmodel import Session, create_engine, select
@@ -88,10 +88,10 @@ class ChallengeState(MileageState):
         except Exception as e:
             logger.error(f"기본 챌린지 생성 오류: {e}", exc_info=True)
 
-    async def load_active_challenges(self):
+    def load_active_challenges(self):
         """활성화된 챌린지 목록 로드"""
         try:
-            await self.ensure_default_challenges()
+            self.ensure_default_challenges()
 
             from sqlmodel import Session, create_engine, select
             import os
@@ -253,15 +253,15 @@ class ChallengeState(MileageState):
         except Exception as e:
             logger.error(f"챌린지 진행도 업데이트 오류: {e}")
     
-    async def load_user_challenge_progress(self):
+    def load_user_challenge_progress(self):
         """사용자의 챌린지 진행도 로드"""
         if not self.is_logged_in or not self.current_user_id:
             self.user_challenge_progress = []
             return
-        
+
         try:
             # 활성화된 챌린지 로드
-            await self.load_active_challenges()
+            self.load_active_challenges()
             
             # 사용자의 진행도 조회 (SQLModel Session 직접 사용)
             from sqlmodel import Session, create_engine, select
@@ -448,7 +448,7 @@ class ChallengeState(MileageState):
     # 포인트 로그 관련 변수
     points_log: List[Dict[str, Any]] = []
     
-    async def load_points_log(self):
+    def load_points_log(self):
         """포인트 획득 내역 로드 (탄소 입력/챌린지 모두 포함)"""
         if not self.is_logged_in or not self.current_user_id:
             self.points_log = []
@@ -499,9 +499,12 @@ class ChallengeState(MileageState):
             logger.error(f"포인트 로그 로드 오류: {e}", exc_info=True)
             self.points_log = []
     
-    async def load_mypage_data(self):
+    def load_mypage_data(self):
         """마이페이지 모든 데이터 로드"""
+        logger.info(f"[마이페이지 로드] 시작 - is_logged_in: {self.is_logged_in}, user_id: {self.current_user_id}")
+
         if not self.is_logged_in or not self.current_user_id:
+            logger.warning(f"[마이페이지 로드] 조기 반환 - 로그인 안됨 (is_logged_in: {self.is_logged_in}, user_id: {self.current_user_id})")
             return
         
         try:
@@ -525,19 +528,19 @@ class ChallengeState(MileageState):
         
         try:
             # 챌린지 진행도 로드
-            await self.load_user_challenge_progress()
+            self.load_user_challenge_progress()
         except Exception as e:
             logger.error(f"챌린지 진행도 로드 오류: {e}", exc_info=True)
         
         try:
             # 마일리지 환산 내역 로드
-            await self.load_mileage_conversion_logs()
+            self.load_mileage_conversion_logs()
         except Exception as e:
             logger.error(f"마일리지 환산 내역 로드 오류: {e}", exc_info=True)
         
         try:
             # 탄소 통계 로드 및 개별 변수에 할당
-            stats = await self.get_carbon_statistics()
+            stats = self.get_carbon_statistics()
             self.carbon_total_logs = stats.get("total_logs", 0)
             self.carbon_total_emission = stats.get("total_emission", 0.0)
             self.carbon_average_daily_emission = stats.get("average_daily_emission", 0.0)
@@ -554,14 +557,14 @@ class ChallengeState(MileageState):
         
         try:
             # 포인트 로그 로드
-            await self.load_points_log()
+            self.load_points_log()
         except Exception as e:
             logger.error(f"포인트 로그 로드 오류: {e}", exc_info=True)
             self.points_log = []
         
         try:
             # 대시보드 통계 로드 (이번주/한달 배출량)
-            await self.load_dashboard_statistics()
+            self.load_dashboard_statistics()
         except Exception as e:
             logger.error(f"대시보드 통계 로드 오류: {e}", exc_info=True)
             self.weekly_emission = 0.0
@@ -587,7 +590,7 @@ class ChallengeState(MileageState):
                 print(f"[ChallengeState] 주간 챌린지 업데이트 실패: {e}")
                 logger.warning(f"[ChallengeState] 주간 챌린지 업데이트 실패: {e}", exc_info=True)
     
-    async def load_dashboard_statistics(self):
+    def load_dashboard_statistics(self):
         """대시보드 통계 데이터 로드 (이번주/한달 배출량)"""
         if not self.is_logged_in or not self.current_user_id:
             self.weekly_emission = 0.0
@@ -699,8 +702,13 @@ class ChallengeState(MileageState):
                     "height": bar_height,
                     "has_emission": has_emission
                 })
-            
+
             logger.info(f"대시보드 통계 로드 완료: 이번주 {self.weekly_emission}kg, 한달 {self.monthly_emission}kg")
+            logger.info(f"[디버그] monthly_daily_data 개수: {len(self.monthly_daily_data)}")
+            logger.info(f"[디버그] weekly_daily_data 개수: {len(self.weekly_daily_data)}")
+            if len(self.monthly_daily_data) > 0:
+                logger.info(f"[디버그] monthly_daily_data 첫 항목: {self.monthly_daily_data[0]}")
+                logger.info(f"[디버그] monthly_daily_data 마지막 항목: {self.monthly_daily_data[-1]}")
             
         except Exception as e:
             logger.error(f"대시보드 통계 로드 오류: {e}", exc_info=True)

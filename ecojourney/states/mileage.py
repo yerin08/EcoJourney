@@ -96,7 +96,7 @@ class MileageState(BattleState):
             self.mileage_error_message = f"마일리지 환산 실패: {str(e)}"
             logger.error(f"마일리지 환산 오류: {e}", exc_info=True)
     
-    async def load_mileage_conversion_logs(self):
+    def load_mileage_conversion_logs(self):
         """마일리지 환산 내역 로드"""
         if not self.is_logged_in:
             self.mileage_conversion_logs = []

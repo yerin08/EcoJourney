@@ -1353,7 +1353,7 @@ class CarbonState(AuthState):
             logger.error(f"로그 이력 조회 오류: {e}", exc_info=True)
             return []
     
-    async def get_carbon_statistics(self) -> Dict[str, Any]:
+    def get_carbon_statistics(self) -> Dict[str, Any]:
         """탄소 배출량 통계 데이터 반환"""
         if not self.is_logged_in or not self.current_user_id:
             return {

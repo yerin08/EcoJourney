@@ -242,7 +242,7 @@ def home_page() -> rx.Component:
                     rx.text(
                         "줄일수록 보이는 나의 변화.",
                         color="#FFFFFF",
-                        size="5",
+                        size="6",
                         font_weight="bold",
                         text_align="center",
                         width="100%",
@@ -256,7 +256,7 @@ def home_page() -> rx.Component:
                     rx.text(
                         "다함께 지속 가능한 에코 라이프를 만들어요.",
                         color="#FFFFFF",
-                        size="5",
+                        size="6",
                         font_weight="bold",
                         text_align="center",
                         width="100%",
@@ -282,59 +282,29 @@ def home_page() -> rx.Component:
                 justify_content="center",
             ),
         ),
+        rx.box(
+            rx.vstack(
+                rx.divider(),
+
+                # 현재 기후 상황
+                rx.box(
+                    rx.heading()
+                ),
+                rx.divider(margin_top="40px"),
+                # 사이트 콘텐츠 소개
+                rx.box(),
+                # 로그인 페이지 이동 버튼
+
+                spacing="6",
+                width="100%",
+                max_width="1200px",
+                align="center",
+            ),
+            width="100%",
+            z_index="2",
+            padding="40px 20px",
+            display="flex",
+            justify_content="center",
+            margin_top="95vh",
+        ),
     )
-
-
-    #     rx.box(
-    #         rx.vstack(
-    #             rx.heading("EcoJourney", size="9", color="white", font_weight="bold", margin_right="100px"),
-    #             rx.text(
-    #                 "EcoJourney는 일상 속 행동을 기반으로\n"
-    #                 "당신의 탄소 발자국을 시각적으로 보여주는 서비스입니다.\n"
-    #                 "지금 바로 오늘의 흔적을 확인해보세요.",
-    #                 white_space="pre-line",
-    #                 size="5",
-    #                 color="white",
-    #                 text_align="left",
-    #                 margin_bottom="30px",
-    #                 margin_left="100px"
-    #             ),
-    #             rx.button(
-    #                 "EcoJourney 자세히 보기",
-    #                 on_click=rx.redirect("/intro"),
-    #                 color="white",
-    #                 background_color="rgba(0, 0, 0, 0.22)",      # 연한 회색 배경
-    #                 border_radius="40px",            # pill 형태
-    #                 padding="27px 40px",             # 사진과 비슷한 두께
-    #                 border="4px solid rgba(255, 255, 255, 0.2)",      # 테두리 색
-    #                 font_size="1.1em",
-    #                 font_weight="semibold",
-    #                 margin_left="100px",
-    #                 _hover={
-    #                     "background_color": "rgba(0, 0, 0, 0.4)",    # hover 시 약간 진하게
-    #                 },
-    #             ),
-                
-    #             align_items="center",
-    #             spacing="5",
-    #             z_index="1",
-    #         ),
-    #         width="100%",
-    #         height="100vh",
-    #         padding_top="80px",
-    #         padding_bottom="80px",
-    #         z_index="1",
-    #         display="flex",
-    #         justify_content="flex-end",
-    #         align_items="center",
-    #         padding_right="4%",
-    #     ),
-        
-    #     footer(),
-        
-    #     width="100%",
-    #     min_height="100vh",
-    #     background_color="transparent", 
-    #     # 메인 콘텐츠가 배경 위에서 올바르게 위치하도록 position: relative 추가
-    #     position="relative" 
-    # )

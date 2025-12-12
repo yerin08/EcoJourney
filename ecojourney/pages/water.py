@@ -279,7 +279,7 @@ def water_page():
             rx.container(
             rx.vstack(
                 rx.heading(
-                    "Water Usage",
+                    "물",
                     size="9",
                     color="#333333",
                     font_weight="700",

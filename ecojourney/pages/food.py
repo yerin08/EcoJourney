@@ -302,7 +302,7 @@ def food_page():
             rx.container(
             rx.vstack(
                 rx.heading(
-                    "Your Daily Food",
+                    "식품",
                     size="9",
                     color="#333333",
                     font_weight="700",

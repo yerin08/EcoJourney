@@ -234,7 +234,7 @@ def waste_page():
             rx.container(
             rx.vstack(
                 rx.heading(
-                    "Waste Management",
+                    "쓰레기",
                     size="9",
                     color="#333333",
                     font_weight="700",

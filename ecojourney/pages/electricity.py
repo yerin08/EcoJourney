@@ -235,14 +235,14 @@ def electricity_page():
             rx.container(
             rx.vstack(
                 rx.heading(
-                    "Electricity Usage",
+                    "냉/난방",
                     size="9",
                     color="#333333",
                     font_weight="700",
                     letter_spacing="-0.02em",
                 ),
                 rx.text(
-                    "오늘 사용한 전기 기기(냉방기/난방기)를 모두 선택해주세요",
+                    "오늘 사용한 냉/난방 기기를 모두 선택해주세요",
                     color="#666666",
                     font_size="1.15em",
                     font_weight="400",

@@ -676,7 +676,7 @@ def info_page() -> rx.Component:
                 display="flex",
                 justify_content="center",
 
-                # ⭐ 콘텐츠를 상단 66vh 바로 아래로 내리는 핵심 코드
+                # 콘텐츠를 상단 66vh 바로 아래로 내리는 핵심 코드
                 margin_top="66vh",
             ),
 

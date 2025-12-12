@@ -142,7 +142,7 @@ def report_page() -> rx.Component:
                     AppState.is_report_calculated,
                     rx.box(
                     rx.heading(
-                        "Your Carbon Footprint Report",
+                        "탄소 발자국 리포트",
                         size="9",
                         width="100%",
                         text_align="center",
