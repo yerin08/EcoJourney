@@ -2,6 +2,7 @@
 
 import reflex as rx
 from ..state import AppState
+from .help_modal import help_icon_button, help_modal
 
 FOOD_SUBCATEGORIES = {
     "유제품류": ["우유", "치즈", "두유"],
@@ -327,12 +328,18 @@ def food_page():
         header(),
         rx.container(
             rx.vstack(
-                rx.heading("음식 선택", size="7", color="white"),
+                rx.hstack(
+                    rx.heading("음식 선택", size="7", color="white"),
+                    help_icon_button("식품"),
+                    spacing="2",
+                    align="center",
+                ),
                 rx.text(
                     "오늘 섭취한 음식을 모두 선택해주세요",
                     color="rgba(255, 255, 255, 0.8)",
                     font_size="1.1em",
                 ),
+                help_modal("식품"),
 
                 rx.box(height="30px"),
 

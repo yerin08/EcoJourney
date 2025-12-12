@@ -2,6 +2,7 @@
 
 import reflex as rx
 from ..states import AppState
+from .help_modal import help_icon_button, help_modal
 
 def clothing_input_field(label: str, count_name: str, vintage_name: str):
     """의류 입력 필드 (개수 + 새제품/빈티지 선택)"""
@@ -48,8 +49,14 @@ def clothing_input_field(label: str, count_name: str, vintage_name: str):
 
 def clothing_page() -> rx.Component:
     return rx.vstack(
-        rx.heading("의류 입력", size="8"),
+        rx.hstack(
+            rx.heading("의류 입력", size="8"),
+            help_icon_button("의류"),
+            spacing="2",
+            align="center",
+        ),
         rx.text("의류 구매 정보를 입력하세요 (새제품/빈티지 구분)", size="4"),
+        help_modal("의류"),
         
         rx.form(
             rx.vstack(

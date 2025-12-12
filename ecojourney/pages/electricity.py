@@ -2,11 +2,18 @@
 
 import reflex as rx
 from ..states import AppState
+from .help_modal import help_icon_button, help_modal
 
 def electricity_page() -> rx.Component:
     return rx.vstack(
-        rx.heading("전기 사용 입력", size="8"),
+        rx.hstack(
+            rx.heading("전기 사용 입력", size="8"),
+            help_icon_button("전기"),
+            spacing="2",
+            align="center",
+        ),
         rx.text("전기 사용량을 입력하세요 (여러 기기를 한 번에 입력 가능)", size="4"),
+        help_modal("전기"),
         
         rx.form(
             rx.vstack(

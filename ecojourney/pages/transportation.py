@@ -1,5 +1,6 @@
 import reflex as rx
 from ..state import AppState
+from .help_modal import help_icon_button, help_modal
 
 UNITS = ["km", "분"]
 
@@ -235,12 +236,18 @@ def transportation_page():
         header(),
         rx.container(
             rx.vstack(
-                rx.heading("교통수단 선택", size="7", color="white"),
+                rx.hstack(
+                    rx.heading("교통수단 선택", size="7", color="white"),
+                    help_icon_button("교통"),
+                    spacing="2",
+                    align="center",
+                ),
                 rx.text(
                     "오늘 이용한 교통수단을 모두 선택해주세요",
                     color="rgba(255, 255, 255, 0.8)",
                     font_size="1.1em",
                 ),
+                help_modal("교통"),
 
                 rx.box(height="30px"),
 

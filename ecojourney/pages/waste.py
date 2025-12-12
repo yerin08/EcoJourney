@@ -2,11 +2,18 @@
 
 import reflex as rx
 from ..states import AppState
+from .help_modal import help_icon_button, help_modal
 
 def waste_page() -> rx.Component:
     return rx.vstack(
-        rx.heading("쓰레기 입력", size="8"),
+        rx.hstack(
+            rx.heading("쓰레기 입력", size="8"),
+            help_icon_button("쓰레기"),
+            spacing="2",
+            align="center",
+        ),
         rx.text("쓰레기 배출량을 입력하세요 (여러 종류를 한 번에 입력 가능)", size="4"),
+        help_modal("쓰레기"),
         
         rx.form(
             rx.vstack(
