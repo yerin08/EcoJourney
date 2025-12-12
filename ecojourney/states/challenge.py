@@ -183,6 +183,11 @@ class ChallengeState(MileageState):
                         progress.current_value = 0
                         progress.is_completed = False
                         progress.completed_at = None
+                    # 오늘 이미 완료했으면 업데이트하지 않음
+                    elif last_updated_date == today and progress.is_completed:
+                        print(f"[일일 챌린지] 오늘 이미 완료됨: {challenge.title}")
+                        logger.info(f"일일 챌린지: 오늘 이미 완료됨 ({challenge.title})")
+                        return
 
                 # 주간 챌린지는 주가 바뀌면 리셋
                 if challenge.type == "WEEKLY_STREAK":
@@ -357,8 +362,8 @@ class ChallengeState(MileageState):
 
         self.challenge_message = ""
         try:
-            await self.ensure_default_challenges()
-            await self.load_active_challenges()
+            self.ensure_default_challenges()
+            self.load_active_challenges()
             challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_INFO"), None)
             if not challenge:
                 self.challenge_message = "챌린지를 불러올 수 없습니다."
@@ -366,7 +371,10 @@ class ChallengeState(MileageState):
             await self.update_challenge_progress(challenge["id"], 1)
             self.article_read_today = True  # 상태 업데이트
             self.challenge_message = "아티클 읽기 완료! 포인트가 적립됩니다."
-            await self.load_user_challenge_progress()
+            self.load_user_challenge_progress()
+
+            # 포인트 로그 새로고침
+            self.load_points_log()
         except Exception as e:
             self.challenge_message = f"아티클 읽기 처리 중 오류: {e}"
             logger.error(self.challenge_message, exc_info=True)
@@ -388,16 +396,16 @@ class ChallengeState(MileageState):
             if is_correct != correct_answer:
                 self.challenge_message = "틀렸습니다. 다시 시도해주세요."
                 return
-            
-            await self.ensure_default_challenges()
-            await self.load_active_challenges()
+
+            self.ensure_default_challenges()
+            self.load_active_challenges()
             challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_QUIZ"), None)
             if not challenge:
                 self.challenge_message = "챌린지를 불러올 수 없습니다."
                 return
             await self.update_challenge_progress(challenge["id"], 1)
             self.challenge_message = "정답입니다! OX 퀴즈 완료! 포인트가 적립되었습니다."
-            await self.load_user_challenge_progress()
+            self.load_user_challenge_progress()
         except Exception as e:
             self.challenge_message = f"OX 퀴즈 처리 중 오류: {e}"
             logger.error(self.challenge_message, exc_info=True)
@@ -421,9 +429,9 @@ class ChallengeState(MileageState):
         
         try:
             print("[주간 챌린지] 기본 챌린지 확인 중...")
-            await self.ensure_default_challenges()
+            self.ensure_default_challenges()
             print("[주간 챌린지] 활성 챌린지 로드 중...")
-            await self.load_active_challenges()
+            self.load_active_challenges()
             print(f"[주간 챌린지] 활성 챌린지 개수: {len(self.active_challenges)}")
             
             challenge = next((c for c in self.active_challenges if c["type"] == "WEEKLY_STREAK"), None)
@@ -438,8 +446,8 @@ class ChallengeState(MileageState):
             print(f"[주간 챌린지] 진행도 업데이트 시작 (challenge_id: {challenge['id']})")
             await self.update_challenge_progress(challenge["id"], 1)
             print("[주간 챌린지] 진행도 업데이트 완료")
-            
-            await self.load_user_challenge_progress()
+
+            self.load_user_challenge_progress()
             print("[주간 챌린지] 사용자 챌린지 진행도 로드 완료")
         except Exception as e:
             print(f"[주간 챌린지] 오류 발생: {e}")
@@ -719,7 +727,7 @@ class ChallengeState(MileageState):
     def close_article(self):
         self.article_modal_open = False
 
-    async def load_quiz_state(self):
+    def load_quiz_state(self):
         """퀴즈 및 아티클 상태 로드 (오늘 이미 완료했는지 확인)"""
         if not self.is_logged_in or not self.current_user_id:
             self.quiz_answered = False
@@ -738,8 +746,8 @@ class ChallengeState(MileageState):
             today = date.today()
 
             # 챌린지 로드
-            await self.ensure_default_challenges()
-            await self.load_active_challenges()
+            self.ensure_default_challenges()
+            self.load_active_challenges()
 
             quiz_challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_QUIZ"), None)
             info_challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_INFO"), None)
@@ -756,10 +764,10 @@ class ChallengeState(MileageState):
 
                     if quiz_progress and quiz_progress.last_updated:
                         last_updated_date = quiz_progress.last_updated.date()
-                        if last_updated_date == today:
+                        # 오늘 날짜이고 완료된 경우에만 "풀었음"으로 처리
+                        if last_updated_date == today and quiz_progress.is_completed:
                             self.quiz_answered = True
-                            self.quiz_is_correct = quiz_progress.is_completed
-                            logger.info(f"퀴즈 상태 로드: 오늘 풀었음 (정답: {self.quiz_is_correct})")
+                            self.quiz_is_correct = True
                         else:
                             self.quiz_answered = False
                             self.quiz_is_correct = False
@@ -783,7 +791,6 @@ class ChallengeState(MileageState):
                         last_updated_date = info_progress.last_updated.date()
                         if last_updated_date == today and info_progress.is_completed:
                             self.article_read_today = True
-                            logger.info("아티클 상태 로드: 오늘 이미 읽었음")
                         else:
                             self.article_read_today = False
                     else:
@@ -803,16 +810,43 @@ class ChallengeState(MileageState):
             self.challenge_message = "로그인 후 이용해주세요."
             return
 
-        # 이미 오늘 풀었으면 무시
-        if self.quiz_answered:
+        # 이미 오늘 정답을 맞췄으면 무시
+        if self.quiz_answered and self.quiz_is_correct:
+            self.challenge_message = "이미 오늘 퀴즈를 완료했습니다."
             return
 
-        self.quiz_answered = True
-        self.quiz_is_correct = is_correct
+        try:
+            # 챌린지 로드
+            self.ensure_default_challenges()
+            self.load_active_challenges()
 
-        # 정답인 경우에만 챌린지 진행도 업데이트
-        if is_correct:
-            await self.complete_daily_quiz()
-        else:
-            self.challenge_message = "틀렸습니다. 내일 다시 도전해주세요!"
+            quiz_challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_QUIZ"), None)
+            if not quiz_challenge:
+                self.challenge_message = "챌린지를 불러올 수 없습니다."
+                return
+
+            # 정답 확인
+            correct_answer = True  # "지구 온난화를 막기 위해서는 일회용품 사용을 줄여야 한다" 정답은 O(True)
+
+            if is_correct == correct_answer:
+                # 정답인 경우 챌린지 진행도 업데이트
+                await self.update_challenge_progress(quiz_challenge["id"], 1)
+                self.quiz_answered = True
+                self.quiz_is_correct = True
+                self.challenge_message = "정답입니다! OX 퀴즈 완료! 포인트가 적립되었습니다."
+
+                # 사용자 챌린지 진행도 새로고침
+                self.load_user_challenge_progress()
+
+                # 포인트 로그 새로고침
+                self.load_points_log()
+            else:
+                # 오답인 경우 상태만 업데이트 (재시도 가능)
+                self.quiz_answered = False
+                self.quiz_is_correct = False
+                self.challenge_message = "틀렸습니다. 다시 시도해주세요!"
+
+        except Exception as e:
+            self.challenge_message = f"퀴즈 처리 중 오류: {e}"
+            logger.error(f"퀴즈 처리 오류: {e}", exc_info=True)
 

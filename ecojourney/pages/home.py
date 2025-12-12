@@ -126,20 +126,6 @@ def header() -> rx.Component:
     )
 
 
-def footer() -> rx.Component:
-    return rx.box(
-        rx.center(
-            # 💡 영상 위에서 잘 보이도록 텍스트 색상 조정
-            rx.text("© 2025 EcoJourney. All rights reserved.", color="white", font_size="0.9em"),
-            padding="1em",
-        ),
-        width="100%",
-        position="fixed",
-        bottom="0",
-        z_index="100",
-        background_color="transparent",
-    )
-
 # --- 홈 페이지 본문 ---
 def home_page() -> rx.Component:
     """홈 페이지 컴포넌트"""
@@ -159,7 +145,64 @@ def home_page() -> rx.Component:
                 transform: translateY(0);
             }
         }
+
+        /* 스크롤 애니메이션 */
+        .scroll-fade-in,
+        .scroll-fade-in-delay,
+        .scroll-fade-in-text,
+        .scroll-fade-in-button {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .scroll-fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .scroll-fade-in-delay.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.2s;
+        }
+
+        .scroll-fade-in-text.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.4s;
+        }
+
+        .scroll-fade-in-button.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: 0.6s;
+        }
         </style>
+        """),
+
+        # 스크롤 애니메이션 JavaScript
+        rx.script("""
+        (function() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -100px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, observerOptions);
+
+            // DOM이 로드된 후 관찰 시작
+            setTimeout(() => {
+                const elements = document.querySelectorAll('.scroll-fade-in, .scroll-fade-in-delay, .scroll-fade-in-text, .scroll-fade-in-button');
+                elements.forEach(el => observer.observe(el));
+            }, 100);
+        })();
         """),
 
         # 세션 복원 스크립트 (페이지 로드 시 localStorage 확인 후 백엔드 호출)
@@ -288,16 +331,311 @@ def home_page() -> rx.Component:
 
                 # 현재 기후 상황
                 rx.box(
-                    rx.heading()
+                    rx.heading(
+                        "지금, 우리가 마주한 기후 위기",
+                        align="center",
+                        font_weight="bold",
+                        size="7",
+                        class_name="scroll-fade-in",
+                    ),
+
+                    rx.hstack(
+                        # =======================
+                        # 왼쪽 50% : 이미지 영역
+                        # =======================
+                        rx.box(
+                            rx.hstack(
+                                rx.image(
+                                    src="/dust.jpg",
+                                    width="45%",
+                                    height="100%",
+                                    object_fit="cover",
+                                    border_radius="18px",
+                                ),
+                                rx.vstack(
+                                    rx.image(
+                                        src="/trash.jpg",
+                                        width="100%",
+                                        height="48%",
+                                        object_fit="cover",
+                                        border_radius="14px",
+                                    ),
+                                    rx.image(
+                                        src="/glacier.jpg",
+                                        width="100%",
+                                        height="48%",
+                                        object_fit="cover",
+                                        border_radius="14px",
+                                    ),
+                                    spacing="4",
+                                    height="100%",
+                                ),
+                                spacing="4",
+                                height="100%",
+                            ),
+                            width="50%",
+                            height="420px",
+                            class_name="scroll-fade-in-delay",
+                        ),
+
+                        # =======================
+                        # 오른쪽 50% : 텍스트 영역
+                        # =======================
+                        rx.box(
+                            rx.vstack(
+                                rx.text(
+                                    "기후 변화는 더 이상 먼 미래의 이야기가 아닙니다.\n"
+                                    "폭염, 이상 기후, 미세먼지, 해수면 상승과 같은 환경 문제는\n"
+                                    "이미 우리의 일상과 안전을 직접적으로 위협하고 있습니다.",
+                                    white_space="pre-line",
+                                    color="#333333",
+                                    size="4",
+                                    font_weight="bold",
+                                ),
+                                rx.text(
+                                    "특히 온실가스 배출로 인한 지구 온난화는\n"
+                                    "자연 생태계의 붕괴뿐 아니라 식량 문제, 건강 문제,\n"
+                                    "사회·경제적 불균형까지 초래하고 있습니다.",
+                                    white_space="pre-line",
+                                    color="#333333",
+                                    size="4",
+                                    font_weight="bold",
+                                    margin_top="20px",
+                                ),
+                                rx.text(
+                                    "하지만 기후 위기는 개인의 노력만으로 해결할 수 없는 문제인 동시에,\n"
+                                    "개인의 작은 실천이 모였을 때\n"
+                                    "가장 큰 변화를 만들 수 있는 문제이기도 합니다.\n"
+                                    "지금 행동하지 않으면, 그 피해는 고스란히 우리의 미래가 됩니다.",
+                                    white_space="pre-line",
+                                    color="#333333",
+                                    size="4",
+                                    font_weight="bold",
+                                    margin_top="20px",
+                                ),
+                                spacing="5",
+                                justify="center",
+                            ),
+                            width="50%",
+                            padding_left="80px",
+                            class_name="scroll-fade-in-text",
+                        ),
+
+                        width="100%",
+                        align="center",
+                        margin_top="50px",
+                    ),
                 ),
+
+
                 rx.divider(margin_top="40px"),
-                # 사이트 콘텐츠 소개
-                rx.box(),
-                # 로그인 페이지 이동 버튼
+
+                # ECOJOURNEY 소개
+                rx.box(
+                    rx.vstack(
+                        rx.hstack(
+                            # 왼쪽 박스
+                            rx.box(
+                                rx.vstack(
+                                    rx.heading(
+                                        "ECOJOURNEY\n"
+                                        "- 행동으로 이어지는 환경 실천 플랫폼 -",
+                                        white_space="pre-line",
+                                        text_align="center",
+                                        font_weight="bold",
+                                        size="6",
+                                        margin_bottom="10px",
+                                    ),
+                                    rx.divider(width="100%"),
+                                    rx.text(
+                                        "EcoJourney는 환경 문제를 '알아보는 것'에서 끝내지 않고,\n"
+                                        "실제 행동과 변화로 이어지도록 돕는 참여형 환경 플랫폼입니다.",
+                                        white_space="pre-line",
+                                        text_align="center",
+                                        color="#333333",
+                                        size="4",
+                                        margin_top="20px",
+                                    ),
+
+                                    rx.text(
+                                        "우리는 일상 속에서 발생하는 탄소 배출과 환경 행동을 기록하고,\n"
+                                        "눈에 보이는 데이터와 보상 시스템을 통해\n"
+                                        "지속 가능한 실천을 자연스럽게 이어갈 수 있도록 설계되었습니다.",
+                                        white_space="pre-line",
+                                        text_align="center",
+                                        color="#333333",
+                                        size="4",
+                                    ),
+
+                                    rx.text(
+                                        "환경 보호는 거창한 결심이 아니라\n"
+                                        "매일의 선택과 작은 습관에서 시작됩니다.\n"
+                                        "EcoJourney는 그 시작을 함께합니다.",
+                                        white_space="pre-line",
+                                        text_align="center",
+                                        color="#333333",
+                                        size="4",
+                                        font_weight="bold",
+                                    ),
+
+                                    spacing="5",
+                                    align="center",
+                                    justify="center",
+                                    height="100%",
+                                ),
+                                flex="1",
+                                height="500px",
+                                background="linear-gradient(135deg, rgba(77, 171, 117, 0.1) 0%, rgba(77, 171, 117, 0.15) 100%)",
+                                border_radius="20px",
+                                padding="30px",
+                                class_name="scroll-fade-in",
+                            ),
+
+                            # 오른쪽 박스
+                            rx.box(
+                                rx.vstack(
+                                    rx.heading(
+                                        "ECOJOURNEY 이렇게 활용하세요.",
+                                        text_align="center",
+                                        font_weight="bold",
+                                        size="6",
+                                        margin_bottom="10px",
+                                    ),
+                                    rx.divider(width="100%"),
+                                    rx.hstack(
+                                        rx.image(
+                                            src="/report.png",
+                                            width="17%",
+                                        ),
+                                        rx.text(
+                                            "나의 환경 행동을 기록하고 확인하세요.",
+                                            color="#333333",
+                                            size="4",
+                                            font_weight="bold",
+                                        ),
+                                        width="100%",
+                                        justify="start",
+                                        spacing="4",
+                                        margin_top="20px",
+                                    ),
+                                    rx.hstack(
+                                        rx.text(
+                                            "챌린지와 배틀로 실천을 이어가세요.",
+                                            color="#333333",
+                                            size="4",
+                                            font_weight="bold",
+                                        ),
+                                        rx.image(
+                                            src="/battle.png",
+                                            width="20%",
+                                        ),
+                                        width="100%",
+                                        justify="end",
+                                        spacing="4",
+                                    ),
+                                    rx.hstack(
+                                        rx.image(
+                                            src="/point.png",
+                                            width="12%",
+                                        ),
+                                        rx.text(
+                                            "포인트로 동기부여를 높이세요.",
+                                            color="#333333",
+                                            size="4",
+                                            font_weight="bold",
+                                        ),
+                                        width="100%",
+                                        justify="start",
+                                        spacing="4",
+                                    ),
+                                    rx.hstack(
+                                        rx.text(
+                                            "환경을 '의식하는 습관'을 만들어 보세요.",
+                                            color="#333333",
+                                            size="4",
+                                            font_weight="bold",
+                                        ),
+                                        rx.image(
+                                            src="/earth2.png",
+                                            width="12%",
+                                        ),
+                                        width="100%",
+                                        justify="end",
+                                        spacing="4",
+                                    ),
+                                    spacing="5",
+                                    align="center",
+                                    justify="center",
+                                    height="100%",
+                                ),
+                                flex="1",
+                                height="500px",
+                                background="linear-gradient(135deg, rgba(77, 171, 117, 0.1) 0%, rgba(77, 171, 117, 0.15) 100%)",
+                                border_radius="20px",
+                                padding="30px",
+                                class_name="scroll-fade-in-delay",
+                            ),
+                            spacing="7",
+                            width="100%",
+                            align="stretch",
+                        ),
+                        rx.vstack(
+                            rx.text(
+                                "환경 보호는 선택이 아닌 책임입니다.\n"
+                                "그리고 그 책임은 오늘의 작은 실천에서 시작됩니다.",
+                                white_space="pre-line",
+                                text_align="center",
+                                width="100%",
+                            ),
+                            rx.text(
+                                "ECOJOURNEY와 함께 지금, 당신의 환경 여정을 시작해보세요",
+                                text_align="center",
+                                width="100%",
+                            ),
+                            spacing="2",
+                            width="100%",
+                            align="center",
+                            class_name="scroll-fade-in-text",
+                        ),
+                        spacing="6",
+                        width="100%",
+                        max_width="1200px",
+                        margin="0 auto",
+                    ),
+                    margin_top="30px",
+                    width="100%",
+                ),
+                # 로그인 페이지 이동 버튼 (로그인 안 된 경우만 표시)
+                rx.cond(
+                    ~AppState.is_logged_in,
+                    rx.box(
+                        rx.button(
+                            "함께하기",
+                            on_click=rx.redirect("/auth"),
+                            color="#FFFFFF",
+                            background_color="#4DAB75",
+                            border_radius="40px",
+                            padding="30px 60px",
+                            font_size="1.2em",
+                            font_weight="bold",
+                            _hover={
+                                "background_color": "#3d8f5f",
+                                "transform": "translateY(-8px)",
+                                "box_shadow": "0 6px 20px rgba(77, 171, 117, 0.4)",
+                            },
+                            class_name="scroll-fade-in-button",
+                        ),
+                        width="100%",
+                        display="flex",
+                        justify_content="center",
+                        padding_bottom="60px",
+                    ),
+                    rx.box(height="60px"),  # 로그인된 경우 빈 공간
+                ),
 
                 spacing="6",
                 width="100%",
-                max_width="1200px",
+                max_width="1300px",
                 align="center",
             ),
             width="100%",
@@ -307,4 +645,5 @@ def home_page() -> rx.Component:
             justify_content="center",
             margin_top="95vh",
         ),
+        
     )

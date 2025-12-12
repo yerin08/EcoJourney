@@ -30,7 +30,7 @@ app.add_page(home_page, route="/", title="ECOJOURNEY", on_load=AppState.check_an
 # 2. 리포트 시작 화면 라우팅
 app.add_page(intro_page, route="/intro", title="ECOJOURNEY | 리포트", on_load=AppState.check_and_restore_session)
 # 2-1. 챌린지 페이지
-app.add_page(info_page, route="/info", title="ECOJOURNEY | 챌린지", on_load=[AppState.check_and_restore_session, AppState.load_active_challenges])
+app.add_page(info_page, route="/info", title="ECOJOURNEY | 챌린지", on_load=[AppState.check_and_restore_session, AppState.load_active_challenges, AppState.load_quiz_state])
 
 # 2-1. 로그인/회원가입 화면 라우팅
 app.add_page(auth_page, route="/auth", title="ECOJOURNEY | 로그인")
