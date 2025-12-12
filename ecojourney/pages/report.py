@@ -1,757 +1,785 @@
-# report.py
-
 import reflex as rx
 from ..states import AppState
-from typing import Dict, Any
+
+def header() -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            # 로고 버튼
+            rx.button(
+                "ECOJOURNEY",
+                on_click=rx.redirect("/"),
+                background_color="transparent",
+                color="#FFFFFF",
+                font_size="1.5em",
+                font_weight="bold",
+                padding="0",
+                border="none",
+                border_radius="8px",
+                cursor="pointer",
+            ),
+
+            # 로그인 상태에 따른 메뉴
+            rx.cond(
+                AppState.is_logged_in,
+                rx.hstack(
+                    rx.button(
+                        "챌린지",
+                        on_click=rx.redirect("/info"),
+                        background_color="transparent",
+                        color="#FFFFFF",
+                        border="none",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                        _hover={"border": "1px solid #FFFFFF"},
+                    ),
+                    rx.button(
+                        "배틀",
+                        on_click=rx.redirect("/battle"),
+                        background_color="transparent",
+                        color="#FFFFFF",
+                        border="none",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                        _hover={"border": "1px solid #FFFFFF"},
+                    ),
+                    rx.button(
+                        "랭킹",
+                        on_click=rx.redirect("/ranking"),
+                        background_color="transparent",
+                        color="#FFFFFF",
+                        border="none",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                        _hover={"border": "1px solid #FFFFFF"},
+                    ),
+                    rx.button(
+                        "리포트",
+                        on_click=rx.redirect("/intro"),
+                        background_color="transparent",
+                        color="#FFFFFF",
+                        border="1px solid #FFFFFF",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                    ),
+                    rx.text(
+                        f"{AppState.current_user_id}님",
+                        color="#FFFFFF",
+                        font_size="1em",
+                        margin_right="10px",
+                    ),
+                    rx.button(
+                        "마이페이지",
+                        on_click=rx.redirect("/mypage"),
+                        background_color="transparent",
+                        color="#FFFFFF",
+                        border="none",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                        _hover={
+                            "border": "1px solid #FFFFFF",
+                        },
+                    ),
+                    rx.button(
+                        "로그아웃",
+                        on_click=AppState.logout,
+                        background_color="#FFFFFF",
+                        color="#4DAB75",
+                        border="1px solid #4DAB75",
+                        border_radius="25px",
+                        padding="8px 20px",
+                        font_weight="500",
+                        _hover={"background_color": "rgba(255, 255, 255, 0.9)"},
+                    ),
+                    spacing="3",
+                    align="center",
+                ),
+
+                # 로그인 안 된 상태 → 로그인 버튼
+                rx.button(
+                    "로그인",
+                    on_click=rx.redirect("/auth"),
+                    background_color="#FFFFFF",
+                    color="#4DAB75",
+                    border="1px solid #4DAB75",
+                    border_radius="25px",
+                    padding="8px 20px",
+                    font_weight="500",
+                    _hover={"background_color": "rgba(255, 255, 255, 0.9)"},
+                ),
+            ),
+
+            justify="between",
+            align="center",
+            padding="1.5em 3em",
+        ),
+
+        width="100%",
+        position="relative",
+        z_index="10",
+        background_color="#4DAB75",
+        border_bottom="1px solid rgba(255, 255, 255, 0.1)",
+    )
 
 def report_page() -> rx.Component:
     """
     최종 탄소 발자국 리포트 페이지 컴포넌트입니다.
-    페이지 로드 시 자동으로 탄소 배출량을 계산합니다.
+    4분할 레이아웃: 막대그래프, 파이차트, 포인트 내역, AI 솔루션
     """
-    # 페이지 로드 시 자동으로 계산 수행 (조건부 렌더링으로 트리거)
-    # 리포트 페이지가 렌더링될 때 계산이 안 되어 있으면 자동으로 계산
-    return rx.center(
-        rx.vstack(
-            rx.heading("🌍 탄소 발자국 측정 결과", size="7", margin_bottom="20px"),
-            
-            # 계산 버튼 (수동 재계산용)
-            rx.cond(
-                ~AppState.is_report_calculated,
-                rx.button(
-                    "📊 탄소 배출량 계산하기",
-                    on_click=AppState.calculate_report,
-                    color_scheme="blue",
-                    size="3",
-                    margin_bottom="20px"
-                ),
-            ),
-            
-            # 1. 계산 상태 확인
-            rx.cond(
-                AppState.is_report_calculated,
-                rx.vstack(
-                    rx.text("✅ 최종 계산이 완료되었습니다.", color="green.700", size="5"),
-                    rx.text(
-                        f"총 {AppState.all_activities.length()}개의 활동이 계산되었습니다.",
-                        color="gray.600",
-                        size="3"
-                    ),
-                    spacing="2"
-                ),
-                rx.text("⏳ 계산이 완료되지 않았습니다. 위 버튼을 클릭하여 계산하세요.", color="orange.700", size="5"),
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # 2. 총 배출량 및 절약량
-            rx.hstack(
-                rx.vstack(
-                    rx.text(
-                        "총 배출량 (kg CO2e):", 
-                        font_weight="bold",
-                        size="4"
-                    ),
-                    rx.text(
-                        AppState.total_carbon_emission, 
-                        size="8", 
-                        color="blue.700"
-                    ),
-                    spacing="1",
-                    align="center",
-                ),
+    return rx.cond(
+        AppState.is_logged_in,
+        rx.box(
+            rx.vstack(
+                # 헤더
+                header(),
+
+                # 메인 컨텐츠 - 4분할 그리드
                 rx.cond(
-                    AppState.total_saved_emission > 0,
-                    rx.vstack(
-                        rx.text(
-                            "절약한 탄소 (kg CO2e):", 
-                            font_weight="bold",
-                            size="4"
-                        ),
-                        rx.text(
-                            AppState.total_saved_emission, 
-                            size="8", 
-                            color="green.700"
-                        ),
-                        rx.text(
-                            f"절약 금액: {AppState.saved_money}원",
-                            size="3",
-                            color="green.600"
-                        ),
-                        spacing="1",
-                        align="center",
-                    ),
-                    rx.fragment(),
-                ),
-                spacing="8",
-                justify="center",
-                width="100%",
-            ),
-            
-            # 3. 상세 내역 (데이터 개수 확인)
-            rx.text(
-                f"총 활동 기록 수: {AppState.all_activities.length()}",
-                color="gray.600"
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # 4. 상세 계산 내역 표시 및 도넛 차트
-            rx.cond(
-                AppState.is_report_calculated & (AppState.calculation_details.length() > 0),
-                rx.hstack(
-                    # 상세 계산 내역
+                    AppState.is_report_calculated,
                     rx.box(
-                        rx.vstack(
-                            rx.heading("📋 상세 계산 내역", size="5", margin_bottom="10px"),
-                            rx.foreach(
-                                AppState.calculation_details,
-                                lambda detail: rx.vstack(
-                                    # 카테고리 및 활동 유형
-                                    rx.hstack(
-                                        rx.text(detail["category"], font_weight="bold", size="3"),
-                                        rx.text(" - ", font_weight="bold", size="3"),
-                                        rx.text(
-                                            detail["activity_type"], 
-                                            font_weight="bold", 
-                                            size="3",
-                                            overflow="hidden",
-                                            text_overflow="ellipsis",
-                                            white_space="nowrap",
-                                            max_width="100%",
-                                        ),
-                                        rx.cond(
-                                            detail.get("sub_category", "") != "",
-                                            rx.hstack(
-                                                rx.text(" (", size="2", color="gray.500"),
-                                                rx.text(
-                                                    detail["sub_category"],
-                                                    size="2",
-                                                    color="gray.500",
-                                                    font_weight="bold",
-                                                ),
-                                                rx.text(")", size="2", color="gray.500"),
-                                                spacing="0",
-                                            ),
-                                            rx.fragment(),
-                                        ),
-                                        spacing="0",
-                                        width="100%",
-                                        align="start",
-                                        flex_wrap="wrap",
-                                    ),
-                                    # 값 및 배출량
-                                    rx.hstack(
-                                        rx.text(detail["value"], color="gray.600", size="3"),
-                                        rx.text(detail["unit"], color="gray.600", size="3"),
-                                        rx.text(" = ", color="gray.600", size="3"),
-                                        rx.text(detail["emission"], color="blue.700", font_weight="bold", size="3"),
-                                        rx.text("kgCO2e", color="blue.700", font_weight="bold", size="3"),
-                                        spacing="1",
-                                        width="100%",
-                                        flex_wrap="wrap",
-                                    ),
-                                    # 계산 방법
-                                    rx.hstack(
-                                        rx.text("(", color="green.600", size="2"),
-                                        rx.text(
-                                            detail["method"], 
-                                            color="green.600", 
-                                            size="2",
-                                            overflow="hidden",
-                                            text_overflow="ellipsis",
-                                            white_space="nowrap",
-                                            max_width="100%",
-                                        ),
-                                        rx.text(")", color="green.600", size="2"),
-                                        spacing="0",
-                                        width="100%",
-                                    ),
-                                    spacing="1",
-                                    margin_bottom="10px",
-                                    padding="10px",
-                                    border="1px solid",
-                                    border_color="gray.200",
-                                    border_radius="6px",
-                                    width="100%",
-                                    align="start",
-                                )
-                            ),
-                            spacing="2",
-                            width="100%",
-                        ),
-                        padding="20px",
-                        border="1px solid",
-                        border_color="gray.300",
-                        border_radius="8px",
-                        width="50%",
-                        margin_right="10px",
-                        overflow="hidden",
+                    rx.heading(
+                        "탄소 발자국 리포트",
+                        size="9",
+                        width="100%",
+                        text_align="center",
+                        color="#333333",
+                        font_weight="700",
+                        letter_spacing="-0.02em",
+                        padding_bottom="25px",
+                        padding_top="30px",
                     ),
-                    
-                    # 도넛 차트 (카테고리별 비율)
-                    rx.cond(
-                        AppState.category_emission_breakdown.length() > 0,
+                    rx.grid(
+                        # 왼쪽 상단: 막대 그래프 (평균 비교)
                         rx.box(
                             rx.vstack(
-                                rx.heading("🍩 카테고리별 배출 비율", size="5", margin_bottom="15px"),
-                                rx.cond(
-                                    AppState.total_carbon_emission > 0,
-                                    rx.vstack(
-                                        # 도넛 차트 SVG
-                                        rx.cond(
-                                            AppState.donut_chart_svg != "",
+                                rx.text(
+                                    "평균 대비 배출량",
+                                    font_weight="700",
+                                    size="5",
+                                    color="#333333",
+                                ),
+
+                                # 막대 그래프 + 비교 문구를 가로로 배치
+                                rx.hstack(
+                                    # 왼쪽: 막대 그래프
+                                    rx.hstack(
+                                        # 한국인 평균 막대
+                                        rx.vstack(
                                             rx.box(
-                                                rx.html(AppState.donut_chart_svg),
-                                                width="200px",
-                                                height="200px",
+                                                rx.tooltip(
+                                                    rx.box(
+                                                        width="50px",
+                                                        height=f"{AppState.average_bar_height}px",
+                                                        background="linear-gradient(180deg, #93c5fd 0%, #60a5fa 100%)",
+                                                        border_radius="8px 8px 0 0",
+                                                        transition="height 0.5s ease",
+                                                        _hover={"opacity": "0.8"},
+                                                    ),
+                                                    content=f"평균 배출량: {AppState.total_average_comparison.get('average', 0):.2f} kgCO₂e",
+                                                ),
                                                 display="flex",
-                                                align_items="center",
-                                                justify_content="center",
-                                                margin_bottom="15px",
+                                                align_items="flex-end",
+                                                height="120px",
                                             ),
-                                            rx.box(
-                                                rx.text("차트 생성 중...", color="gray.400", size="3"),
-                                                width="200px",
-                                                height="200px",
-                                                display="flex",
-                                                align_items="center",
-                                                justify_content="center",
-                                                margin_bottom="15px",
+                                            rx.text("평균 배출량", size="1", color="#666666", margin_top="6px"),
+                                            rx.text(
+                                                f"{AppState.total_average_comparison.get('average', 0):.1f}kg",
+                                                size="2",
+                                                font_weight="bold",
+                                                color="#93c5fd",
                                             ),
+                                            align="center",
+                                            spacing="1",
                                         ),
-                                        # 범례 및 상세 정보
+
+                                        # 내 배출량 막대
+                                        rx.vstack(
+                                            rx.box(
+                                                rx.tooltip(
+                                                    rx.box(
+                                                        width="50px",
+                                                        height=f"{AppState.user_bar_height}px",
+                                                        background=rx.cond(
+                                                            AppState.total_average_comparison.get('is_better', False),
+                                                            "linear-gradient(180deg, #6ee7b7 0%, #34d399 100%)",
+                                                            "linear-gradient(180deg, #fca5a5 0%, #f87171 100%)",
+                                                        ),
+                                                        border_radius="8px 8px 0 0",
+                                                        transition="height 0.5s ease",
+                                                        _hover={"opacity": "0.8"},
+                                                    ),
+                                                    content=f"내 배출량: {AppState.total_average_comparison.get('user', 0):.2f} kgCO₂e",
+                                                ),
+                                                display="flex",
+                                                align_items="flex-end",
+                                                height="120px",
+                                            ),
+                                            rx.text("내 배출량", size="1", color="#666666", margin_top="6px"),
+                                            rx.text(
+                                                f"{AppState.total_average_comparison.get('user', 0):.1f}kg",
+                                                size="2",
+                                                font_weight="bold",
+                                                color=rx.cond(
+                                                    AppState.total_average_comparison.get('is_better', False),
+                                                    "#6ee7b7",
+                                                    "#fca5a5",
+                                                ),
+                                            ),
+                                            align="center",
+                                            spacing="1",
+                                        ),
+
+                                        spacing="4",
+                                        align="end",
+                                    ),
+
+                                    # 오른쪽: 비교 결과 문구
+                                    rx.box(
+                                        rx.vstack(
+                                            rx.text(
+                                                rx.cond(
+                                                    AppState.total_average_comparison.get('is_better', False),
+                                                    "✅ 평균보다",
+                                                    "⚠️ 평균보다",
+                                                ),
+                                                size="2",
+                                                color="#666666",
+                                                font_weight="500",
+                                            ),
+                                            rx.text(
+                                                f"{AppState.total_average_comparison.get('abs_difference', 0):.1f}kg",
+                                                size="5",
+                                                font_weight="bold",
+                                                color=rx.cond(
+                                                    AppState.total_average_comparison.get('is_better', False),
+                                                    "#6ee7b7",
+                                                    "#fca5a5",
+                                                ),
+                                            ),
+                                            rx.text(
+                                                rx.cond(
+                                                    AppState.total_average_comparison.get('is_better', False),
+                                                    "적게 배출했어요! 🎉",
+                                                    "더 배출했어요 😅",
+                                                ),
+                                                size="2",
+                                                color="#999999",
+                                            ),
+                                            spacing="1",
+                                            align="center",
+                                        ),
+                                        padding="16px 20px",
+                                        background=rx.cond(
+                                            AppState.total_average_comparison.get('is_better', False),
+                                            "rgba(110, 231, 183, 0.15)",
+                                            "rgba(252, 165, 165, 0.15)",
+                                        ),
+                                        border_radius="16px",
+                                        border="2px solid",
+                                        border_color=rx.cond(
+                                            AppState.total_average_comparison.get('is_better', False),
+                                            "rgba(110, 231, 183, 0.3)",
+                                            "rgba(252, 165, 165, 0.3)",
+                                        ),
+                                    ),
+
+                                    spacing="6",
+                                    align="center",
+                                    justify="center",
+                                    width="100%",
+                                    padding_top="20px",
+                                ),
+
+                                spacing="3",
+                                align="center",
+                                width="100%",
+                            ),
+                            padding="24px",
+                            background="#FFFFFF",
+                            border_radius="20px",
+                            box_shadow="0 4px 20px rgba(0, 0, 0, 0.1)",
+                            border="1px solid #E0E0E0",
+                            height="100%",
+                        ),
+
+                        # 오른쪽 상단: 파이 차트 (카테고리별)
+                        rx.box(
+                            rx.vstack(
+                                rx.text(
+                                    "카테고리별 배출량",
+                                    font_weight="700",
+                                    size="5",
+                                    color="#333333",
+                                ),
+
+                                rx.cond(
+                                    AppState.category_emission_list.length() > 0,
+                                    rx.hstack(
+                                        # 파이 차트 SVG
+                                        rx.box(
+                                            rx.cond(
+                                                AppState.donut_chart_svg != "",
+                                                rx.html(AppState.donut_chart_svg),
+                                                rx.text("차트 생성 중...", color="#999999", size="2"),
+                                            ),
+                                            width="140px",
+                                            height="140px",
+                                            display="flex",
+                                            align_items="center",
+                                            justify_content="center",
+                                        ),
+
+                                        # 범례
                                         rx.vstack(
                                             rx.foreach(
                                                 AppState.category_emission_list,
-                                                lambda item: rx.hstack(
-                                                    rx.box(
-                                                        width="20px",
-                                                        height="20px",
-                                                        border_radius="4px",
-                                                        background=item["color"],
-                                                    ),
-                                                    rx.vstack(
-                                                        rx.hstack(
-                                                            rx.text(
-                                                                item["category"],
-                                                                font_weight="bold",
-                                                                size="3",
-                                                                color="gray.800",
-                                                            ),
-                                                            rx.text(
-                                                                f"{item['percentage']:.1f}%",
-                                                                size="2",
-                                                                color="gray.600",
-                                                            ),
-                                                            justify="between",
-                                                            width="100%",
+                                                lambda item: rx.tooltip(
+                                                    rx.hstack(
+                                                        rx.box(
+                                                            width="12px",
+                                                            height="12px",
+                                                            border_radius="3px",
+                                                            background=item["color"],
                                                         ),
                                                         rx.text(
-                                                            f"{item['emission']:.2f}kg",
+                                                            item["category"],
                                                             size="2",
-                                                            color="gray.600",
+                                                            color="#333333",
                                                         ),
-                                                        spacing="1",
-                                                        width="100%",
+                                                        rx.text(
+                                                            f"{item['percentage']:.0f}%",
+                                                            size="2",
+                                                            color="#666666",
+                                                            font_weight="600",
+                                                        ),
+                                                        spacing="2",
+                                                        align="center",
+                                                        padding="4px 8px",
+                                                        border_radius="6px",
+                                                        _hover={"background": "rgba(77, 171, 117, 0.1)"},
+                                                        cursor="pointer",
                                                     ),
-                                                    spacing="3",
-                                                    width="100%",
-                                                    margin_bottom="10px",
+                                                    content=f"{item['category']}: {item['emission']:.2f}kgCO₂e ({item['percentage']:.1f}%)",
                                                 ),
-                                            ),
-                                            spacing="2",
-                                            align="start",
-                                            width="100%",
-                                        ),
-                                        spacing="2",
-                                        align="center",
-                                    ),
-                                    rx.text("데이터 없음", color="gray.400", size="3"),
-                                ),
-                                spacing="2",
-                            ),
-                            padding="20px",
-                            border="1px solid",
-                            border_color="gray.300",
-                            border_radius="12px",
-                            width="50%",
-                            margin_left="10px",
-                        ),
-                        rx.fragment(),
-                    ),
-                    spacing="4",
-                    width="100%",
-                    align="start",
-                    margin_bottom="20px",
-                ),
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # 절약량 및 포인트 획득 내역
-            rx.cond(
-                AppState.is_report_calculated,
-                rx.box(
-                    rx.vstack(
-                        rx.heading("🌱 탄소 절약 및 포인트 획득 내역", size="6", margin_bottom="15px"),
-                        
-                        # 자전거/걷기 절약량
-                        rx.cond(
-                            AppState.total_saved_emission > 0,
-                            rx.vstack(
-                                rx.text(
-                                    f"자전거/걷기를 사용하여 총 {AppState.total_saved_emission}kg의 탄소를 절약했습니다!",
-                                    size="4",
-                                    color="green.700",
-                                    margin_bottom="10px",
-                                ),
-                                rx.foreach(
-                                    AppState.savings_details,
-                                    lambda item: rx.hstack(
-                                        rx.text(
-                                            f"• {item['activity_type']} {item['distance_km']}km",
-                                            size="3",
-                                            color="gray.700",
-                                        ),
-                                        rx.text(
-                                            f"→ {item['saved_emission']}kg 절약 ({item['saved_money']}원)",
-                                            size="3",
-                                            color="green.600",
-                                            font_weight="bold",
-                                        ),
-                                        spacing="2",
-                                        width="100%",
-                                    ),
-                                ),
-                                spacing="2",
-                                margin_bottom="15px",
-                            ),
-                            rx.fragment(),
-                        ),
-                        
-                        # 빈티지 제품 정보
-                        rx.cond(
-                            AppState.points_breakdown.get('빈티지', 0) > 0,
-                            rx.vstack(
-                                rx.text(
-                                    f"빈티지 제품 사용: {AppState.points_breakdown.get('빈티지', 0)}점",
-                                    size="3",
-                                    color="purple.600",
-                                    font_weight="bold",
-                                    margin_bottom="5px",
-                                ),
-                                rx.foreach(
-                                    AppState.all_activities,
-                                    lambda act: rx.cond(
-                                        (act.get("category", "") == "의류") & (act.get("sub_category", "") == "빈티지"),
-                                        rx.hstack(
-                                            rx.text(
-                                                "• ",
-                                                size="3",
-                                                color="gray.700",
-                                            ),
-                                            rx.text(
-                                                act.get('activity_type', ''),
-                                                size="3",
-                                                color="gray.700",
-                                            ),
-                                            rx.text(
-                                                " 빈티지 ",
-                                                size="3",
-                                                color="gray.700",
-                                            ),
-                                            rx.text(
-                                                act.get('value', 0),
-                                                size="3",
-                                                color="gray.700",
-                                            ),
-                                            rx.text(
-                                                "개 (10점/개)",
-                                                size="3",
-                                                color="purple.600",
                                             ),
                                             spacing="1",
-                                            width="100%",
-                                            flex_wrap="wrap",
+                                            align="start",
                                         ),
-                                        rx.fragment(),
+
+                                        spacing="4",
+                                        align="center",
+                                        justify="center",
+                                        width="100%",
+                                        padding_top="20px",
                                     ),
+                                    rx.text("데이터 없음", color="#999999", size="3"),
                                 ),
-                                spacing="2",
-                                margin_bottom="15px",
-                            ),
-                            rx.fragment(),
-                        ),
-                        
-                        # 평균 대비 낮은 배출량 포인트
-                        rx.cond(
-                            AppState.points_breakdown.get('평균 대비', 0) > 0,
-                            rx.text(
-                                f"평균 대비 낮은 배출량: {AppState.points_breakdown.get('평균 대비', 0)}점",
-                                size="3",
-                                color="blue.600",
-                                font_weight="bold",
-                                margin_bottom="15px",
-                            ),
-                            rx.fragment(),
-                        ),
-                        
-                        # 총 지급 포인트
-                        rx.cond(
-                            AppState.total_points_earned > 0,
-                            rx.box(
-                                rx.vstack(
-                                    rx.text(
-                                        "💰 총 지급 포인트",
-                                        size="4",
-                                        color="yellow.700",
-                                        font_weight="bold",
-                                        margin_bottom="5px",
-                                    ),
-                                    rx.text(
-                                        f"{AppState.total_points_earned}점",
-                                        size="7",
-                                        color="yellow.600",
-                                        font_weight="bold",
-                                    ),
-                                    spacing="2",
-                                    align="center",
-                                ),
-                                padding="15px",
-                                border="2px solid",
-                                border_color="yellow.400",
-                                border_radius="12px",
-                                background="yellow.50",
+
+                                spacing="3",
+                                align="center",
                                 width="100%",
-                                margin_top="10px",
+                                height="100%",
                             ),
-                            rx.fragment(),
+                            padding="24px",
+                            background="#FFFFFF",
+                            border_radius="20px",
+                            box_shadow="0 4px 20px rgba(0, 0, 0, 0.1)",
+                            border="1px solid #E0E0E0",
+                            height="100%",
                         ),
-                        
-                        spacing="2",
-                    ),
-                    padding="20px",
-                    border="1px solid",
-                    border_color="green.300",
-                    border_radius="12px",
-                    background="green.50",
-                    margin_bottom="20px",
-                    width="100%",
-                ),
-                rx.fragment(),
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # 총 평균 비교만 표시
-            rx.cond(
-                AppState.is_report_calculated & AppState.total_average_comparison.contains('user'),
-                rx.vstack(
-                    rx.heading("📊 총 배출량 평균 비교", size="6", margin_bottom="20px"),
-                    
-                    # 총 평균 vs 내 배출량 비교
-                    rx.box(
-                        rx.vstack(
-                            rx.heading("📈 평균 vs 내 배출량", size="5", margin_bottom="15px"),
-                            rx.text("(단위: kgCO₂e)", size="2", color="gray.600", margin_bottom="10px"),
-                            
-                            # 비교 정보
+
+                        # 왼쪽 하단: 포인트 획득 내역
+                        rx.box(
                             rx.vstack(
-                                rx.hstack(
-                                    rx.vstack(
-                                        rx.text("한국인 평균", size="3", color="gray.700", font_weight="bold"),
-                                        rx.text(
-                                            AppState.total_average_comparison.get('average_str', "0.00 kgCO₂e"),
-                                            size="5",
-                                            color="blue.700",
-                                            font_weight="bold",
-                                        ),
-                                        spacing="1",
-                                        align="center",
-                                    ),
-                                    rx.text("vs", size="4", color="gray.500", margin_x="20px"),
-                                    rx.vstack(
-                                        rx.text("내 배출량", size="3", color="gray.700", font_weight="bold"),
-                                        rx.text(
-                                            AppState.total_average_comparison.get('user_str', "0.00 kgCO₂e"),
-                                            size="5",
-                                            color=rx.cond(
-                                                AppState.total_average_comparison.get('is_better', False),
-                                                "green.700",
-                                                "red.700"
-                                            ),
-                                            font_weight="bold",
-                                        ),
-                                        spacing="1",
-                                        align="center",
-                                    ),
-                                    spacing="4",
-                                    justify="center",
-                                    align="center",
-                                    width="100%",
+                                rx.text(
+                                    "포인트 획득 내역",
+                                    font_weight="700",
+                                    size="5",
+                                    color="#333333",
                                 ),
-                                
-                                rx.divider(margin_y="15px"),
-                                
-                                # 차이 표시
-                                rx.vstack(
-                                    rx.text(
+
+                                rx.box(
+                                    rx.vstack(
+                                        # 총 포인트
+                                        rx.hstack(
+                                            rx.text("총 획득 포인트", size="2", color="#666666"),
+                                            rx.spacer(),
+                                            rx.text(
+                                                f"{AppState.total_points_earned}점",
+                                                size="5",
+                                                font_weight="bold",
+                                                color="#fbbf24",
+                                            ),
+                                            width="100%",
+                                            padding="12px",
+                                            background="rgba(251, 191, 36, 0.15)",
+                                            border_radius="12px",
+                                            border="1px solid rgba(251, 191, 36, 0.3)",
+                                        ),
+
+                                        # 포인트 상세 내역
+                                        rx.cond(
+                                            AppState.total_saved_emission > 0,
+                                            rx.hstack(
+                                                rx.box(
+                                                    rx.text("🚴", size="4"),
+                                                    padding="8px",
+                                                    background="rgba(110, 231, 183, 0.2)",
+                                                    border_radius="8px",
+                                                ),
+                                                rx.vstack(
+                                                    rx.text("자전거/걷기 절약", size="2", font_weight="600", color="#333333"),
+                                                    rx.text(f"{AppState.total_saved_emission:.2f}kg 절약", size="1", color="#6ee7b7"),
+                                                    spacing="0",
+                                                    align="start",
+                                                ),
+                                                rx.spacer(),
+                                                rx.text(f"+{AppState.saved_money}원", size="2", font_weight="bold", color="#6ee7b7"),
+                                                width="100%",
+                                                padding="10px",
+                                                background="rgba(110, 231, 183, 0.1)",
+                                                border_radius="10px",
+                                                border="1px solid rgba(110, 231, 183, 0.2)",
+                                                align="center",
+                                            ),
+                                        ),
+
+                                        rx.cond(
+                                            AppState.points_breakdown.get('빈티지', 0) > 0,
+                                            rx.hstack(
+                                                rx.box(
+                                                    rx.text("👕", size="4"),
+                                                    padding="8px",
+                                                    background="rgba(196, 181, 253, 0.2)",
+                                                    border_radius="8px",
+                                                ),
+                                                rx.vstack(
+                                                    rx.text("빈티지 제품", size="2", font_weight="600", color="#333333"),
+                                                    rx.text("환경 보호 실천", size="1", color="#c4b5fd"),
+                                                    spacing="0",
+                                                    align="start",
+                                                ),
+                                                rx.spacer(),
+                                                rx.text(f"+{AppState.points_breakdown.get('빈티지', 0)}점", size="2", font_weight="bold", color="#c4b5fd"),
+                                                width="100%",
+                                                padding="10px",
+                                                background="rgba(196, 181, 253, 0.1)",
+                                                border_radius="10px",
+                                                border="1px solid rgba(196, 181, 253, 0.2)",
+                                                align="center",
+                                            ),
+                                        ),
+
                                         rx.cond(
                                             AppState.total_average_comparison.get('is_better', False),
-                                            "✅ 평균보다 낮습니다!",
-                                            "⚠️ 평균보다 높습니다."
-                                        ),
-                                        size="4",
-                                        color=rx.cond(
-                                            AppState.total_average_comparison.get('is_better', False),
-                                            "green.700",
-                                            "red.700"
-                                        ),
-                                        font_weight="bold",
-                                    ),
-                                    rx.text(
-                                        AppState.total_average_comparison.get('abs_difference_str', "차이: 0.00 kgCO₂e"),
-                                        size="3",
-                                        color="gray.600",
-                                    ),
-                                    rx.text(
-                                        AppState.total_average_comparison.get('percentage_str', "(0.0%)"),
-                                        size="3",
-                                        color="gray.600",
-                                    ),
-                                    spacing="2",
-                                    align="center",
-                                ),
-                                
-                                spacing="3",
-                                align="center",
-                                width="100%",
-                            ),
-                            
-                            spacing="3",
-                            align="center",
-                            width="100%",
-                        ),
-                        padding="20px",
-                        border="1px solid",
-                        border_color="gray.300",
-                        border_radius="12px",
-                        width="100%",
-                        max_width="500px",
-                        margin="0 auto",
-                    ),
-                    
-                    spacing="4",
-                    width="100%",
-                    align="center",
-                ),
-                rx.fragment(),
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # AI 분석 결과 및 대안 추천
-            rx.cond(
-                AppState.is_report_calculated,
-                rx.vstack(
-                    rx.heading("🤖 AI 분석 및 대안 추천", size="6", margin_bottom="20px"),
-                    
-                    rx.cond(
-                        AppState.is_loading_ai,
-                        rx.vstack(
-                            rx.text("AI 분석 중...", color="blue.600", size="4"),
-                            rx.progress(is_indeterminate=True, width="100%", max_width="400px"),
-                            spacing="3",
-                            align="center",
-                        ),
-                        rx.cond(
-                            AppState.ai_analysis_result != "",
-                            rx.vstack(
-                                # AI 분석 결과
-                                rx.box(
-                                    rx.vstack(
-                                        rx.heading("📝 분석 결과", size="5", margin_bottom="10px"),
-                                        rx.text(
-                                            AppState.ai_analysis_result,
-                                            size="3",
-                                            line_height="1.8",
-                                            white_space="pre-wrap",
-                                        ),
-                                        spacing="2",
-                                    ),
-                                    padding="20px",
-                                    border="1px solid",
-                                    border_color="blue.300",
-                                    border_radius="12px",
-                                    background="blue.50",
-                                    margin_bottom="20px",
-                                    width="100%",
-                                    max_width="800px",
-                                ),
-                                
-                                # 구체적 제안
-                                rx.box(
-                                    rx.vstack(
-                                        rx.heading("💡 탄소 저감 제안", size="5", margin_bottom="10px"),
-                                        rx.foreach(
-                                            AppState.ai_suggestions,
-                                            lambda suggestion: rx.hstack(
-                                                rx.text("• ", color="green.600", font_weight="bold"),
-                                                rx.text(
-                                                    suggestion,
-                                                    size="3",
-                                                    line_height="1.8",
+                                            rx.hstack(
+                                                rx.box(
+                                                    rx.text("📉", size="4"),
+                                                    padding="8px",
+                                                    background="rgba(147, 197, 253, 0.2)",
+                                                    border_radius="8px",
                                                 ),
+                                                rx.vstack(
+                                                    rx.text("평균 이하 배출", size="2", font_weight="600", color="#333333"),
+                                                    rx.text("우수한 탄소 관리", size="1", color="#93c5fd"),
+                                                    spacing="0",
+                                                    align="start",
+                                                ),
+                                                rx.spacer(),
+                                                rx.text(f"+{AppState.points_breakdown.get('평균 대비', 0)}점", size="2", font_weight="bold", color="#93c5fd"),
+                                                width="100%",
+                                                padding="10px",
+                                                background="rgba(147, 197, 253, 0.1)",
+                                                border_radius="10px",
+                                                border="1px solid rgba(147, 197, 253, 0.2)",
+                                                align="center",
+                                            ),
+                                        ),
+
+                                        spacing="2",
+                                        width="100%",
+                                    ),
+                                    width="100%",
+                                    overflow_y="auto",
+                                    max_height="200px",
+                                ),
+
+                                spacing="3",
+                                align="start",
+                                width="100%",
+                                height="100%",
+                            ),
+                            padding="24px",
+                            background="#FFFFFF",
+                            border_radius="20px",
+                            box_shadow="0 4px 20px rgba(0, 0, 0, 0.1)",
+                            border="1px solid #E0E0E0",
+                            height="100%",
+                        ),
+
+                        # 오른쪽 하단: AI 솔루션
+                        rx.box(
+                            rx.vstack(
+                                rx.text(
+                                    "AI 솔루션",
+                                    font_weight="700",
+                                    size="5",
+                                    color="#333333",
+                                ),
+
+                                rx.cond(
+                                    AppState.is_loading_ai,
+                                    rx.vstack(
+                                        rx.spinner(size="3", color="#4DAB75"),
+                                        rx.text("AI가 분석 중입니다...", color="#333333", size="2"),
+                                        spacing="3",
+                                        align="center",
+                                        justify="center",
+                                        padding="40px",
+                                        width="100%",
+                                    ),
+                                    rx.cond(
+                                        AppState.ai_analysis_result != "",
+                                        rx.box(
+                                            rx.vstack(
+                                                # 분석 결과 카드
+                                                rx.box(
+                                                    rx.vstack(
+                                                        rx.hstack(
+                                                            rx.text("📝", size="3"),
+                                                            rx.text("분석 결과", size="2", font_weight="600", color="#333333"),
+                                                            rx.spacer(),
+                                                            rx.button(
+                                                                rx.cond(
+                                                                    AppState.show_analysis_detail,
+                                                                    "접기",
+                                                                    "펼치기",
+                                                                ),
+                                                                on_click=AppState.toggle_analysis_detail,
+                                                                size="1",
+                                                                variant="ghost",
+                                                                color="#4DAB75",
+                                                            ),
+                                                            width="100%",
+                                                            align="center",
+                                                        ),
+                                                        rx.cond(
+                                                            AppState.show_analysis_detail,
+                                                            rx.text(
+                                                                AppState.ai_analysis_result,
+                                                                size="2",
+                                                                color="#333333",
+                                                                line_height="1.6",
+                                                                white_space="pre-wrap",
+                                                            ),
+                                                            rx.text(
+                                                                "클릭하여 상세 분석 결과를 확인하세요",
+                                                                size="1",
+                                                                color="#999999",
+                                                            ),
+                                                        ),
+                                                        spacing="2",
+                                                        width="100%",
+                                                    ),
+                                                    padding="12px",
+                                                    background="rgba(147, 197, 253, 0.1)",
+                                                    border_radius="12px",
+                                                    border="1px solid rgba(147, 197, 253, 0.2)",
+                                                    width="100%",
+                                                    cursor="pointer",
+                                                    on_click=AppState.toggle_analysis_detail,
+                                                ),
+
+                                                # 탄소 저감 제안 카드
+                                                rx.cond(
+                                                    AppState.ai_suggestions.length() > 0,
+                                                    rx.box(
+                                                        rx.vstack(
+                                                            rx.hstack(
+                                                                rx.text("💡", size="3"),
+                                                                rx.text("탄소 저감 제안", size="2", font_weight="600", color="#333333"),
+                                                                rx.spacer(),
+                                                                rx.button(
+                                                                    rx.cond(
+                                                                        AppState.show_suggestions_detail,
+                                                                        "접기",
+                                                                        "펼치기",
+                                                                    ),
+                                                                    on_click=AppState.toggle_suggestions_detail,
+                                                                    size="1",
+                                                                    variant="ghost",
+                                                                    color="#4DAB75",
+                                                                ),
+                                                                width="100%",
+                                                                align="center",
+                                                            ),
+                                                            rx.cond(
+                                                                AppState.show_suggestions_detail,
+                                                                rx.vstack(
+                                                                    rx.foreach(
+                                                                        AppState.ai_suggestions,
+                                                                        lambda suggestion: rx.hstack(
+                                                                            rx.text("•", color="#4DAB75", font_weight="bold"),
+                                                                            rx.text(suggestion, size="2", color="#333333"),
+                                                                            spacing="2",
+                                                                            width="100%",
+                                                                        ),
+                                                                    ),
+                                                                    spacing="1",
+                                                                    width="100%",
+                                                                ),
+                                                                rx.text(
+                                                                    f"{AppState.ai_suggestions.length()}개의 제안이 있습니다",
+                                                                    size="1",
+                                                                    color="#999999",
+                                                                ),
+                                                            ),
+                                                            spacing="2",
+                                                            width="100%",
+                                                        ),
+                                                        padding="12px",
+                                                        background="rgba(110, 231, 183, 0.1)",
+                                                        border_radius="12px",
+                                                        border="1px solid rgba(110, 231, 183, 0.2)",
+                                                        width="100%",
+                                                        cursor="pointer",
+                                                        on_click=AppState.toggle_suggestions_detail,
+                                                    ),
+                                                ),
+
                                                 spacing="2",
                                                 width="100%",
-                                                margin_bottom="8px",
                                             ),
+                                            width="100%",
+                                            overflow_y="auto",
+                                            max_height="220px",
                                         ),
-                                        spacing="2",
-                                    ),
-                                    padding="20px",
-                                    border="1px solid",
-                                    border_color="green.300",
-                                    border_radius="12px",
-                                    background="green.50",
-                                    margin_bottom="20px",
-                                    width="100%",
-                                    max_width="800px",
-                                ),
-                                
-                                # 대안 행동
-                                rx.cond(
-                                    AppState.ai_alternatives.length() > 0,
-                                    rx.box(
                                         rx.vstack(
-                                            rx.heading("🔄 대안 행동 추천", size="5", margin_bottom="10px"),
-                                            rx.foreach(
-                                                AppState.ai_alternatives,
-                                                lambda alt: rx.vstack(
-                                                    rx.hstack(
-                                                        rx.text("현재: ", font_weight="bold", size="3"),
-                                                        rx.text(
-                                                            alt.get("current", "") if isinstance(alt, dict) else "",
-                                                            size="3",
-                                                            color="red.600",
-                                                        ),
-                                                        spacing="2",
-                                                    ),
-                                                    rx.hstack(
-                                                        rx.text("대안: ", font_weight="bold", size="3"),
-                                                        rx.text(
-                                                            alt.get("alternative", "") if isinstance(alt, dict) else "",
-                                                            size="3",
-                                                            color="green.600",
-                                                        ),
-                                                        spacing="2",
-                                                    ),
-                                                    rx.text(
-                                                        f"예상 감소량: {alt.get('reduction', 0)}%" if isinstance(alt, dict) else "",
-                                                        size="2",
-                                                        color="blue.600",
-                                                        margin_top="5px",
-                                                    ),
-                                                    padding="15px",
-                                                    border="1px solid",
-                                                    border_color="gray.300",
-                                                    border_radius="8px",
-                                                    margin_bottom="10px",
-                                                    width="100%",
-                                                ),
-                                            ),
-                                            spacing="2",
+                                            rx.spinner(size="3", color="#4DAB75"),
+                                            rx.text("AI 분석 준비 중...", size="2", color="#999999"),
+                                            spacing="3",
+                                            align="center",
+                                            justify="center",
+                                            padding="40px",
+                                            width="100%",
                                         ),
-                                        padding="20px",
-                                        border="1px solid",
-                                        border_color="purple.300",
-                                        border_radius="12px",
-                                        background="purple.50",
-                                        margin_bottom="20px",
-                                        width="100%",
-                                        max_width="800px",
                                     ),
                                 ),
-                                
+
                                 spacing="3",
-                                align="center",
+                                align="start",
                                 width="100%",
+                                height="100%",
                             ),
-                            rx.vstack(
-                                rx.text("AI 분석을 시작하려면 아래 버튼을 클릭하세요.", color="gray.600", size="3"),
-                                rx.button(
-                                    "🤖 AI 분석 시작하기",
-                                    on_click=AppState.generate_ai_analysis,
-                                    color_scheme="purple",
-                                    size="3",
-                                    margin_top="10px",
-                                ),
-                                spacing="2",
-                                align="center",
+                            padding="24px",
+                            background="#FFFFFF",
+                            border_radius="20px",
+                            box_shadow="0 4px 20px rgba(0, 0, 0, 0.1)",
+                            border="1px solid #E0E0E0",
+                            height="100%",
+                        ),
+
+                        columns="2",
+                        rows="2",
+                        gap="16px",
+                        width="100%",
+                        height="calc(100vh - 180px)",
+                    ),
+                    padding="20px 40px",
+                    width="100%",
+                    ),
+                    # 계산 중 로딩 상태
+                    rx.box(
+                        rx.vstack(
+                            rx.spinner(size="3", color="#4DAB75"),
+                            rx.text("리포트를 생성하고 있습니다...", size="4", color="#333333", font_weight="600"),
+                            rx.text("잠시만 기다려주세요", size="2", color="#666666"),
+                            spacing="3",
+                            align="center",
+                            justify="center",
+                        ),
+                        display="flex",
+                        align_items="center",
+                        justify_content="center",
+                        height="calc(100vh - 100px)",
+                        width="100%",
+                    )
+                ),
+
+                # 하단 버튼
+                rx.hstack(
+                    rx.cond(
+                        AppState.is_logged_in,
+                        rx.cond(
+                            AppState.is_saving,
+                            rx.button(
+                                "저장 중...",
+                                is_disabled=True,
+                                size="2",
+                                background_color="rgba(217, 239, 222, 0.3)",
+                                color="rgba(217, 239, 222, 0.5)",
+                            ),
+                            rx.button(
+                                "저장하기",
+                                on_click=AppState.save_carbon_log_to_db,
+                                size="2",
+                                is_disabled=~AppState.is_report_calculated,
+                                background_color="#4DAB75",
+                                color="#FFFFFF",
+                                border_radius="25px",
+                                padding="10px 28px",
+                                font_weight="600",
+                                cursor="pointer",
+                                _hover={
+                                    "background_color": "#3d9a66",
+                                },
                             ),
                         ),
                     ),
-                    
-                    spacing="3",
-                    align="center",
-                    width="100%",
-                ),
-            ),
-            
-            rx.divider(margin_y="20px"),
-            
-            # 저장 버튼 및 메시지 (로그인한 경우에만 표시)
-            rx.cond(
-                AppState.is_logged_in,
-                rx.vstack(
-                    rx.cond(
-                        AppState.is_saving,
-                        rx.vstack(
-                            rx.text("💾 저장 중...", color="blue.600", size="4"),
-                            rx.progress(is_indeterminate=True, width="100%", max_width="300px"),
-                            spacing="2",
-                        ),
-                        rx.button(
-                            "💾 데이터 저장하기",
-                            on_click=AppState.save_carbon_log_to_db,
-                            color_scheme="green",
-                            size="3",
-                            is_disabled=~AppState.is_report_calculated,
-                            margin_bottom="10px"
-                        )
+                    rx.button(
+                        "처음으로",
+                        on_click=rx.redirect("/intro"),
+                        size="2",
+                        background_color="transparent",
+                        color="#4DAB75",
+                        border="1px solid rgba(77, 171, 117, 0.3)",
+                        border_radius="25px",
+                        padding="10px 28px",
+                        font_weight="600",
+                        cursor="pointer",
+                        _hover={
+                            "background_color": "rgba(77, 171, 117, 0.05)",
+                            "border": "1px solid #4DAB75",
+                        },
                     ),
                     rx.cond(
                         AppState.save_message != "",
                         rx.text(
                             AppState.save_message,
-                            color=rx.cond(
-                                AppState.is_save_success,
-                                "green.700",
-                                "red.700"
-                            ),
-                            size="4",
-                            margin_bottom="10px"
+                            size="2",
+                            color=rx.cond(AppState.is_save_success, "#6ee7b7", "#fca5a5"),
+                            font_weight="500",
                         ),
                     ),
-                    spacing="2",
-                    margin_bottom="20px"
+                    spacing="3",
+                    padding="20px 40px",
+                    justify="center",
+                    width="100%",
+                    background_color="#FFFFFF",
+                    border_top="1px solid #E0E0E0",
                 ),
+
+                spacing="0",
+                width="100%",
+                min_height="100vh",
             ),
-            
-            # 4. 재시작 버튼
-            rx.button(
-                "다시 시작하기",
-                # 홈 또는 인트로 페이지로 돌아갑니다.
-                on_click=rx.redirect("/intro"), 
-                color_scheme="gray",
-                size="2"
-            ),
-            
-            spacing="5",
-            align="center",
-            padding="50px"
-        ),
+        background="#F8F9FA",
         width="100%",
-        min_height="100vh"
+        min_height="100vh",
+        on_mount=AppState.on_report_page_load,  # 페이지 로드 시 자동 실행
+        ),
     )

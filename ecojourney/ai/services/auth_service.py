@@ -1,51 +1,60 @@
 from typing import Optional
-import sqlite3
-import bcrypt
+import hashlib
+from datetime import datetime
+from sqlmodel import Session, create_engine, select
+import os
 
-from ecojourney.db import get_connection
+from ecojourney.models import User as UserModel
 from ecojourney.schemas.user import UserCreate, User
 
 
-# ======================================================
-# 내부 전용: student_id로 users 테이블 row 조회
-# ======================================================
-def _get_user_row(student_id: str) -> Optional[sqlite3.Row]:
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM users WHERE student_id = ?",
-        (student_id,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    return row
+# DB 연결 설정 (Reflex와 동일한 DB 사용)
+def _get_engine():
+    """SQLModel 엔진 생성 (Reflex DB와 동일)"""
+    db_path = os.path.join(os.getcwd(), "reflex.db")
+    db_url = f"sqlite:///{db_path}"
+    return create_engine(db_url, echo=False)
 
 
 # ======================================================
-# 회원가입: 비밀번호 해싱 후 users 테이블에 저장
+# 비밀번호 해싱 (SHA256 - Reflex AuthState와 동일)
+# ======================================================
+def _hash_password(password: str) -> str:
+    """비밀번호를 SHA256으로 해시화 (Reflex와 동일한 방식)"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+# ======================================================
+# 회원가입: 비밀번호 해싱 후 user 테이블에 저장
 # ======================================================
 def create_user(user: UserCreate) -> None:
-    conn = get_connection()
-    cur = conn.cursor()
+    """
+    새 사용자를 생성합니다.
+    Reflex의 user 테이블을 사용하며, SHA256으로 비밀번호를 해싱합니다.
+    """
+    engine = _get_engine()
 
-    # 비밀번호 해시 생성 (bcrypt)
-    hashed = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt())
-    hashed_str = hashed.decode("utf-8")
+    # 비밀번호 해시 생성 (SHA256)
+    hashed_password = _hash_password(user.password)
 
     try:
-        cur.execute(
-            """
-            INSERT INTO users (student_id, password_hash, college)
-            VALUES (?, ?, ?)
-            """,
-            (user.student_id, hashed_str, user.college),
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        # PK(student_id) 중복 등은 상위에서 처리
+        with Session(engine) as session:
+            new_user = UserModel(
+                student_id=user.student_id,
+                password=hashed_password,
+                college=user.college,
+                current_points=0,
+                created_at=datetime.now()
+            )
+            session.add(new_user)
+            session.commit()
+    except Exception as e:
+        # student_id 중복 등의 오류는 상위에서 처리
+        error_str = str(e).lower()
+        if "unique" in error_str or "duplicate" in error_str or "constraint" in error_str:
+            import sqlite3
+            raise sqlite3.IntegrityError("이미 존재하는 학번입니다.")
         raise
-    finally:
-        conn.close()
 
 
 # ======================================================
@@ -53,34 +62,42 @@ def create_user(user: UserCreate) -> None:
 # ======================================================
 def verify_user(student_id: str, password: str) -> bool:
     """
-    단과대(college)는 검증에 사용하지 않고,
-    로그인 성공 후 별도로 조회해서 응답에 포함한다.
+    학번과 비밀번호를 검증합니다.
+    단과대(college)는 검증에 사용하지 않고, 로그인 성공 후 별도로 조회합니다.
     """
-    row = _get_user_row(student_id)
-    if row is None:
-        return False
+    engine = _get_engine()
 
-    stored_hash = row["password_hash"]
-    if not stored_hash:
-        return False
+    with Session(engine) as session:
+        statement = select(UserModel).where(UserModel.student_id == student_id)
+        user = session.exec(statement).first()
 
-    return bcrypt.checkpw(
-        password.encode("utf-8"),
-        stored_hash.encode("utf-8"),
-    )
+        if not user:
+            return False
+
+        # 비밀번호 검증 (SHA256)
+        hashed_password = _hash_password(password)
+        return user.password == hashed_password
 
 
 # ======================================================
-# 유저 정보 조회: DB row → User 스키마로 변환
+# 유저 정보 조회: DB → User 스키마로 변환
 # ======================================================
 def get_user(student_id: str) -> Optional[User]:
-    row = _get_user_row(student_id)
-    if row is None:
-        return None
+    """
+    학번으로 사용자 정보를 조회합니다.
+    """
+    engine = _get_engine()
 
-    return User(
-        student_id=row["student_id"],
-        college=row["college"],
-        current_points=row["current_points"],
-        created_at=row["created_at"],
-    )
+    with Session(engine) as session:
+        statement = select(UserModel).where(UserModel.student_id == student_id)
+        user = session.exec(statement).first()
+
+        if not user:
+            return None
+
+        return User(
+            student_id=user.student_id,
+            college=user.college,
+            current_points=user.current_points,
+            created_at=user.created_at,
+        )

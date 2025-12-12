@@ -33,7 +33,7 @@ class ChallengeState(MileageState):
     weekly_daily_data: List[Dict[str, Any]] = []  # 이번주 일별 배출량 데이터
     monthly_daily_data: List[Dict[str, Any]] = []  # 한달 일별 배출량 데이터
     
-    async def ensure_default_challenges(self):
+    def ensure_default_challenges(self):
         """필수 기본 챌린지(주간/일일) 생성"""
         try:
             from sqlmodel import Session, create_engine, select
@@ -46,7 +46,7 @@ class ChallengeState(MileageState):
             # 보상/목표 기본값 정의
             default_challenges = [
                 {"title": "7일 연속 기록", "type": "WEEKLY_STREAK", "goal_value": 7, "reward_points": 10},
-                {"title": "정보 글 읽기", "type": "DAILY_INFO", "goal_value": 1, "reward_points": 1},
+                {"title": "아티클 읽기", "type": "DAILY_INFO", "goal_value": 1, "reward_points": 1},
                 {"title": "OX 퀴즈 풀기", "type": "DAILY_QUIZ", "goal_value": 1, "reward_points": 1},
             ]
 
@@ -88,10 +88,10 @@ class ChallengeState(MileageState):
         except Exception as e:
             logger.error(f"기본 챌린지 생성 오류: {e}", exc_info=True)
 
-    async def load_active_challenges(self):
+    def load_active_challenges(self):
         """활성화된 챌린지 목록 로드"""
         try:
-            await self.ensure_default_challenges()
+            self.ensure_default_challenges()
 
             from sqlmodel import Session, create_engine, select
             import os
@@ -253,15 +253,15 @@ class ChallengeState(MileageState):
         except Exception as e:
             logger.error(f"챌린지 진행도 업데이트 오류: {e}")
     
-    async def load_user_challenge_progress(self):
+    def load_user_challenge_progress(self):
         """사용자의 챌린지 진행도 로드"""
         if not self.is_logged_in or not self.current_user_id:
             self.user_challenge_progress = []
             return
-        
+
         try:
             # 활성화된 챌린지 로드
-            await self.load_active_challenges()
+            self.load_active_challenges()
             
             # 사용자의 진행도 조회 (SQLModel Session 직접 사용)
             from sqlmodel import Session, create_engine, select
@@ -349,6 +349,12 @@ class ChallengeState(MileageState):
         if not self.is_logged_in:
             self.challenge_message = "로그인 후 이용해주세요."
             return
+
+        # 이미 오늘 읽었으면 무시
+        if self.article_read_today:
+            self.challenge_message = "오늘 이미 아티클을 읽었습니다. 내일 다시 도전해주세요!"
+            return
+
         self.challenge_message = ""
         try:
             await self.ensure_default_challenges()
@@ -358,10 +364,11 @@ class ChallengeState(MileageState):
                 self.challenge_message = "챌린지를 불러올 수 없습니다."
                 return
             await self.update_challenge_progress(challenge["id"], 1)
-            self.challenge_message = "정보 글 읽기 완료! 포인트가 적립됩니다."
+            self.article_read_today = True  # 상태 업데이트
+            self.challenge_message = "아티클 읽기 완료! 포인트가 적립됩니다."
             await self.load_user_challenge_progress()
         except Exception as e:
-            self.challenge_message = f"정보 글 읽기 처리 중 오류: {e}"
+            self.challenge_message = f"아티클 읽기 처리 중 오류: {e}"
             logger.error(self.challenge_message, exc_info=True)
 
     async def _complete_daily_quiz_with_answer(self, is_correct: bool):
@@ -389,7 +396,7 @@ class ChallengeState(MileageState):
                 self.challenge_message = "챌린지를 불러올 수 없습니다."
                 return
             await self.update_challenge_progress(challenge["id"], 1)
-            self.challenge_message = "OX 퀴즈 완료! 포인트가 적립됩니다."
+            self.challenge_message = "정답입니다! OX 퀴즈 완료! 포인트가 적립되었습니다."
             await self.load_user_challenge_progress()
         except Exception as e:
             self.challenge_message = f"OX 퀴즈 처리 중 오류: {e}"
@@ -441,34 +448,30 @@ class ChallengeState(MileageState):
     # 포인트 로그 관련 변수
     points_log: List[Dict[str, Any]] = []
     
-    async def load_points_log(self):
+    def load_points_log(self):
         """포인트 획득 내역 로드 (탄소 입력/챌린지 모두 포함)"""
         if not self.is_logged_in or not self.current_user_id:
             self.points_log = []
             return
-        
+
         try:
             from ..models import CarbonLog
             from sqlmodel import Session, create_engine, select
             import os
-            
+
             db_path = os.path.join(os.getcwd(), "reflex.db")
             db_url = f"sqlite:///{db_path}"
             engine = create_engine(db_url, echo=False)
-            
+
             with Session(engine) as session:
                 # 포인트가 0보다 큰 로그만 조회 (포인트가 있는 기록만 표시)
                 stmt = select(CarbonLog).where(
                     CarbonLog.student_id == self.current_user_id,
                     CarbonLog.points_earned > 0
                 ).order_by(CarbonLog.log_date.desc(), CarbonLog.created_at.desc())
-                
-                logger.info(f"[포인트 로그] 조회 조건: student_id={self.current_user_id}, points_earned > 0")
-                print(f"[포인트 로그] 조회 조건: student_id={self.current_user_id}, points_earned > 0")
-                
+
                 logs = session.exec(stmt).all()
-                print(f"[포인트 로그] 조회 결과: {len(logs)}개")
-                
+
                 result = []
                 for log in logs:
                     source = getattr(log, "source", None) or "carbon_input"
@@ -482,17 +485,14 @@ class ChallengeState(MileageState):
                         "source": source,
                         "description": description
                     })
-                    print(f"[포인트 로그] 날짜: {log.log_date}, 포인트: {log.points_earned}점, 출처: {source}")
-                
+
                 self.points_log = result
-                logger.info(f"포인트 로그 로드 완료: {len(result)}개")
-                print(f"[포인트 로그] 최종 결과: {len(result)}개")
-                
+
         except Exception as e:
             logger.error(f"포인트 로그 로드 오류: {e}", exc_info=True)
             self.points_log = []
     
-    async def load_mypage_data(self):
+    def load_mypage_data(self):
         """마이페이지 모든 데이터 로드"""
         if not self.is_logged_in or not self.current_user_id:
             return
@@ -512,25 +512,24 @@ class ChallengeState(MileageState):
                 user = session.exec(user_stmt).first()
                 if user:
                     self.current_user_points = user.current_points
-                    logger.info(f"[마이페이지] 사용자 포인트 새로고침: {self.current_user_points}점")
         except Exception as e:
             logger.error(f"사용자 포인트 새로고침 오류: {e}", exc_info=True)
         
         try:
             # 챌린지 진행도 로드
-            await self.load_user_challenge_progress()
+            self.load_user_challenge_progress()
         except Exception as e:
             logger.error(f"챌린지 진행도 로드 오류: {e}", exc_info=True)
         
         try:
             # 마일리지 환산 내역 로드
-            await self.load_mileage_conversion_logs()
+            self.load_mileage_conversion_logs()
         except Exception as e:
             logger.error(f"마일리지 환산 내역 로드 오류: {e}", exc_info=True)
         
         try:
             # 탄소 통계 로드 및 개별 변수에 할당
-            stats = await self.get_carbon_statistics()
+            stats = self.get_carbon_statistics()
             self.carbon_total_logs = stats.get("total_logs", 0)
             self.carbon_total_emission = stats.get("total_emission", 0.0)
             self.carbon_average_daily_emission = stats.get("average_daily_emission", 0.0)
@@ -547,22 +546,20 @@ class ChallengeState(MileageState):
         
         try:
             # 포인트 로그 로드
-            await self.load_points_log()
+            self.load_points_log()
         except Exception as e:
             logger.error(f"포인트 로그 로드 오류: {e}", exc_info=True)
             self.points_log = []
         
         try:
             # 대시보드 통계 로드 (이번주/한달 배출량)
-            await self.load_dashboard_statistics()
+            self.load_dashboard_statistics()
         except Exception as e:
             logger.error(f"대시보드 통계 로드 오류: {e}", exc_info=True)
             self.weekly_emission = 0.0
             self.monthly_emission = 0.0
             self.weekly_daily_data = []
             self.monthly_daily_data = []
-        
-        logger.info(f"마이페이지 데이터 로드 완료: {self.current_user_id}, 포인트: {self.current_user_points}점")
     
     async def save_carbon_log_to_db(self):
         """탄소 로그 저장 후 주간 챌린지 진행도 업데이트"""
@@ -580,7 +577,7 @@ class ChallengeState(MileageState):
                 print(f"[ChallengeState] 주간 챌린지 업데이트 실패: {e}")
                 logger.warning(f"[ChallengeState] 주간 챌린지 업데이트 실패: {e}", exc_info=True)
     
-    async def load_dashboard_statistics(self):
+    def load_dashboard_statistics(self):
         """대시보드 통계 데이터 로드 (이번주/한달 배출량)"""
         if not self.is_logged_in or not self.current_user_id:
             self.weekly_emission = 0.0
@@ -692,9 +689,7 @@ class ChallengeState(MileageState):
                     "height": bar_height,
                     "has_emission": has_emission
                 })
-            
-            logger.info(f"대시보드 통계 로드 완료: 이번주 {self.weekly_emission}kg, 한달 {self.monthly_emission}kg")
-            
+
         except Exception as e:
             logger.error(f"대시보드 통계 로드 오류: {e}", exc_info=True)
             self.weekly_emission = 0.0
@@ -702,5 +697,122 @@ class ChallengeState(MileageState):
             self.weekly_daily_data = []
             self.monthly_daily_data = []
 
+    mypage_section: str = "points"  # 기본값은 "내 포인트"
 
+    def set_mypage_section(self, section: str):
+        self.mypage_section = section
+
+    article_modal_open: bool = False
+    article_detail: dict = {}
+
+    # 퀴즈 상태 변수
+    quiz_answered: bool = False  # 오늘 퀴즈를 풀었는지 여부
+    quiz_is_correct: bool = False  # 정답 여부
+
+    # 아티클 상태 변수
+    article_read_today: bool = False  # 오늘 아티클을 읽었는지 여부
+
+    def open_article(self, article: dict):
+        self.article_detail = article
+        self.article_modal_open = True
+
+    def close_article(self):
+        self.article_modal_open = False
+
+    async def load_quiz_state(self):
+        """퀴즈 및 아티클 상태 로드 (오늘 이미 완료했는지 확인)"""
+        if not self.is_logged_in or not self.current_user_id:
+            self.quiz_answered = False
+            self.quiz_is_correct = False
+            self.article_read_today = False
+            return
+
+        try:
+            from sqlmodel import Session, create_engine, select
+            import os
+
+            db_path = os.path.join(os.getcwd(), "reflex.db")
+            db_url = f"sqlite:///{db_path}"
+            engine = create_engine(db_url, echo=False)
+
+            today = date.today()
+
+            # 챌린지 로드
+            await self.ensure_default_challenges()
+            await self.load_active_challenges()
+
+            quiz_challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_QUIZ"), None)
+            info_challenge = next((c for c in self.active_challenges if c["type"] == "DAILY_INFO"), None)
+
+            with Session(engine) as session:
+                # DAILY_QUIZ 진행도 조회
+                if quiz_challenge:
+                    quiz_progress = session.exec(
+                        select(ChallengeProgress).where(
+                            ChallengeProgress.challenge_id == quiz_challenge["id"],
+                            ChallengeProgress.student_id == self.current_user_id
+                        )
+                    ).first()
+
+                    if quiz_progress and quiz_progress.last_updated:
+                        last_updated_date = quiz_progress.last_updated.date()
+                        if last_updated_date == today:
+                            self.quiz_answered = True
+                            self.quiz_is_correct = quiz_progress.is_completed
+                            logger.info(f"퀴즈 상태 로드: 오늘 풀었음 (정답: {self.quiz_is_correct})")
+                        else:
+                            self.quiz_answered = False
+                            self.quiz_is_correct = False
+                    else:
+                        self.quiz_answered = False
+                        self.quiz_is_correct = False
+                else:
+                    self.quiz_answered = False
+                    self.quiz_is_correct = False
+
+                # DAILY_INFO 진행도 조회
+                if info_challenge:
+                    info_progress = session.exec(
+                        select(ChallengeProgress).where(
+                            ChallengeProgress.challenge_id == info_challenge["id"],
+                            ChallengeProgress.student_id == self.current_user_id
+                        )
+                    ).first()
+
+                    if info_progress and info_progress.last_updated:
+                        last_updated_date = info_progress.last_updated.date()
+                        if last_updated_date == today and info_progress.is_completed:
+                            self.article_read_today = True
+                            logger.info("아티클 상태 로드: 오늘 이미 읽었음")
+                        else:
+                            self.article_read_today = False
+                    else:
+                        self.article_read_today = False
+                else:
+                    self.article_read_today = False
+
+        except Exception as e:
+            logger.error(f"챌린지 상태 로드 오류: {e}", exc_info=True)
+            self.quiz_answered = False
+            self.quiz_is_correct = False
+            self.article_read_today = False
+
+    async def answer_quiz(self, is_correct: bool):
+        """퀴즈 답변 처리 (정답: True, 오답: False)"""
+        if not self.is_logged_in:
+            self.challenge_message = "로그인 후 이용해주세요."
+            return
+
+        # 이미 오늘 풀었으면 무시
+        if self.quiz_answered:
+            return
+
+        self.quiz_answered = True
+        self.quiz_is_correct = is_correct
+
+        # 정답인 경우에만 챌린지 진행도 업데이트
+        if is_correct:
+            await self.complete_daily_quiz()
+        else:
+            self.challenge_message = "틀렸습니다. 내일 다시 도전해주세요!"
 

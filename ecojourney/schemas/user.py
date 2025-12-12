@@ -35,5 +35,5 @@ class User(UserBase):
     created_at: datetime = Field(..., description="가입일")
 
     class Config:
-        # ORM 객체를 Pydantic 모델로 변환 허용
-        orm_mode = True
+        # ORM 객체를 Pydantic 모델로 변환 허용 (Pydantic V2)
+        from_attributes = True
