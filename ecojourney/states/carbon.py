@@ -636,10 +636,52 @@ class CarbonState(AuthState):
             # 카테고리별 배출량 집계
             await self._calculate_category_breakdown()
             
+            # 레벨 계산
+            self._calculate_carbon_level()
+            
         except Exception as e:
             logger.error(f"[리포트 계산] ❌ 계산 오류 발생: {e}", exc_info=True)
             self.total_carbon_emission = 0.0
             self.is_report_calculated = False
+    
+    def _calculate_carbon_level(self):
+        """탄소 배출량 기준으로 레벨 계산 (배출량이 낮을수록 높은 레벨)"""
+        emission = self.total_carbon_emission
+        
+        # 레벨 기준 (배출량이 낮을수록 높은 레벨)
+        # Level 5: 0-2 kg (매우 낮음, 최고 등급)
+        # Level 4: 2-5 kg (낮음)
+        # Level 3: 5-10 kg (보통)
+        # Level 2: 10-20 kg (높음)
+        # Level 1: 20+ kg (매우 높음, 최하 등급)
+        
+        if emission <= 2.0:
+            self.carbon_level = 5
+            self.carbon_level_image = "/level_5.png"
+            self.next_level_threshold = 0.0  # 이미 최고 레벨
+            self.next_level_text = "최고 레벨을 달성하셨습니다! 🏆"
+        elif emission <= 5.0:
+            self.carbon_level = 4
+            self.carbon_level_image = "/level_4.png"
+            self.next_level_threshold = emission - 2.0  # 2kg까지 감소 필요
+            self.next_level_text = f"Level 5까지 {self.next_level_threshold:.2f}kg 더 줄여보세요!"
+        elif emission <= 10.0:
+            self.carbon_level = 3
+            self.carbon_level_image = "/level_3.png"
+            self.next_level_threshold = emission - 5.0  # 5kg까지 감소 필요
+            self.next_level_text = f"Level 4까지 {self.next_level_threshold:.2f}kg 더 줄여보세요!"
+        elif emission <= 20.0:
+            self.carbon_level = 2
+            self.carbon_level_image = "/level_2.png"
+            self.next_level_threshold = emission - 10.0  # 10kg까지 감소 필요
+            self.next_level_text = f"Level 3까지 {self.next_level_threshold:.2f}kg 더 줄여보세요!"
+        else:
+            self.carbon_level = 1
+            self.carbon_level_image = "/level_1.png"
+            self.next_level_threshold = emission - 20.0  # 20kg까지 감소 필요
+            self.next_level_text = f"Level 2까지 {self.next_level_threshold:.2f}kg 더 줄여보세요!"
+        
+        logger.info(f"[레벨 계산] 배출량: {emission}kg → 레벨: {self.carbon_level}, 다음 레벨까지: {self.next_level_threshold:.2f}kg 감소 필요")
     
     # ------------------------------ DB 저장 메서드 ------------------------------
     
@@ -1088,6 +1130,12 @@ class CarbonState(AuthState):
     ai_alternatives: List[Dict[str, Any]] = []
     is_loading_ai: bool = False
     
+    # 레벨 시스템 관련 상태
+    carbon_level: int = 1  # 현재 레벨 (1-5)
+    next_level_threshold: float = 0.0  # 다음 레벨까지 필요한 탄소 배출량 감소량
+    carbon_level_image: str = "/level_1.png"  # 레벨 배지 이미지 경로
+    next_level_text: str = ""  # 다음 레벨 달성을 위한 안내 텍스트
+    
     async def _calculate_savings(self):
         """자전거/걷기 사용 시 절약한 탄소 배출량 계산"""
         try:
@@ -1487,13 +1535,13 @@ class CarbonState(AuthState):
                     url = p.get("url") or ""
                     if name or desc or url:
                         alternatives.append({
-                            "current": name,
-                            "alternative": desc,
-                            "impact": url,
+                            "current": name or "정책 정보",
+                            "alternative": desc or "",
+                            "impact": url or "",
                         })
             self.ai_alternatives = alternatives
             
-            logger.info("AI 분석 결과 생성 완료 (Gemini + 폴백)")
+            logger.info(f"AI 분석 결과 생성 완료 (Gemini + 폴백) - 정책 추천 {len(alternatives)}개")
             
         except Exception as e:
             logger.error(f"AI 분석 결과 생성 오류: {e}", exc_info=True)

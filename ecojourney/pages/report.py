@@ -96,6 +96,55 @@ def report_page() -> rx.Component:
             
             rx.divider(margin_y="20px"),
             
+            # 3-1. 탄소 배출량 레벨 배지
+            rx.cond(
+                AppState.is_report_calculated,
+                rx.box(
+                    rx.vstack(
+                        rx.heading("🏅 나의 탄소 레벨", size="6", margin_bottom="15px"),
+                        rx.hstack(
+                            rx.image(
+                                src=AppState.carbon_level_image,
+                                width="120px",
+                                height="120px",
+                                alt=f"Level {AppState.carbon_level} Badge",
+                            ),
+                            rx.vstack(
+                                rx.text(
+                                    f"Level {AppState.carbon_level}",
+                                    size="6",
+                                    font_weight="bold",
+                                    color="blue.700",
+                                ),
+                                rx.text(
+                                    AppState.next_level_text,
+                                    size="3",
+                                    color="gray.600",
+                                    margin_top="5px",
+                                ),
+                                spacing="2",
+                                align="start",
+                            ),
+                            spacing="4",
+                            align="center",
+                        ),
+                        spacing="3",
+                        align="center",
+                    ),
+                    padding="20px",
+                    border="1px solid",
+                    border_color="yellow.300",
+                    border_radius="12px",
+                    background="rgba(255, 255, 0, 0.1)",
+                    width="100%",
+                    max_width="500px",
+                    margin_bottom="20px",
+                ),
+                rx.fragment(),
+            ),
+            
+            rx.divider(margin_y="20px"),
+            
             # 4. 상세 계산 내역 표시 및 도넛 차트
             rx.cond(
                 AppState.is_report_calculated & (AppState.calculation_details.length() > 0),
@@ -632,26 +681,26 @@ def report_page() -> rx.Component:
                                                     rx.hstack(
                                                         rx.text("정책: ", font_weight="bold", size="3"),
                                                         rx.text(
-                                                            alt.get("current", "") if isinstance(alt, dict) else "",
+                                                            alt["current"],
                                                             size="3",
                                                             color="blue.700",
                                                         ),
                                                         spacing="2",
                                                     ),
                                                     rx.cond(
-                                                        alt.get("alternative", None) if isinstance(alt, dict) else None,
+                                                        alt["alternative"] != "",
                                                         rx.text(
-                                                            alt.get("alternative", ""),
+                                                            alt["alternative"],
                                                             size="3",
                                                             color="gray.700",
                                                             line_height="1.6",
                                                         ),
                                                     ),
                                                     rx.cond(
-                                                        alt.get("impact", None) if isinstance(alt, dict) else None,
+                                                        alt["impact"] != "",
                                                         rx.link(
                                                             "자세히 보기",
-                                                            href=alt.get("impact", ""),
+                                                            href=alt["impact"],
                                                             is_external=True,
                                                             color="blue.600",
                                                             underline="always",
